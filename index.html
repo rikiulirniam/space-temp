@@ -916,10 +916,7 @@
     </main>
 
     <script>
-      const WS_URL =
-        window.location.protocol === "https:"
-          ? `wss://${window.location.host}`
-          : `ws://${window.location.host}:8080`;
+      const WS_URL = "wss://temp.dasihayu.my.id";
 
       const logContainer = document.getElementById("terminal-log");
       const wsChip = document.getElementById("ws-chip");
@@ -928,6 +925,7 @@
       const btnStop = document.getElementById("btn-stop");
       const tempHistory = [];
       const humiHistory = [];
+      const MAX_POINTS = 50;
       let packets = 0;
       let wsConnection = null;
       let firstPacketReceived = false;
@@ -1013,6 +1011,81 @@
         }
       }
 
+      function clamp(value, min, max) {
+        return Math.min(Math.max(Number(value), min), max);
+      }
+
+      function preprocessData(rawTemp, rawHumi) {
+        const temp = clamp(rawTemp, -20, 80);
+        const humi = clamp(rawHumi, 0, 100);
+
+        tempHistory.push(temp);
+        humiHistory.push(humi);
+
+        if (tempHistory.length > MAX_POINTS) tempHistory.shift();
+        if (humiHistory.length > MAX_POINTS) humiHistory.shift();
+
+        return {
+          rawTemp: temp,
+          rawHumi: humi,
+          cleanTemp: Number(temp.toFixed(1)),
+          cleanHumi: Math.round(humi),
+        };
+      }
+
+      function pushChart(chart, label, value) {
+        chart.data.labels.push(label);
+        chart.data.datasets[0].data.push(value);
+        if (chart.data.labels.length > MAX_POINTS) {
+          chart.data.labels.shift();
+          chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+      }
+
+      function updateUI(processed) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString("id-ID", { hour12: false });
+
+        document.getElementById("main-temp").textContent =
+          processed.cleanTemp.toFixed(1);
+        document.getElementById("main-humi").textContent = processed.cleanHumi;
+        document.getElementById("raw-temp").textContent =
+          `${processed.rawTemp.toFixed(1)} C`;
+        document.getElementById("raw-humi").textContent =
+          `${Math.round(processed.rawHumi)} %`;
+        document.getElementById("clean-temp").textContent =
+          `${processed.cleanTemp.toFixed(1)} C`;
+        document.getElementById("clean-humi").textContent =
+          `${processed.cleanHumi} %`;
+        document.getElementById("last-update").textContent =
+          `Last update: ${timeLabel}`;
+        document.getElementById("feat-dew").textContent = `${(
+          processed.cleanTemp -
+          (100 - processed.cleanHumi) / 5
+        ).toFixed(1)} C`;
+        document.getElementById("feat-risk").textContent = `${Math.round(
+          clamp(
+            (processed.cleanTemp - 27) * 7 + (processed.cleanHumi - 60) * 1.5,
+            0,
+            100,
+          ),
+        )}/100`;
+
+        pushChart(tempChart, timeLabel, processed.cleanTemp);
+        pushChart(humiChart, timeLabel, processed.cleanHumi);
+
+        processChart.data.labels.push(timeLabel);
+        processChart.data.datasets[0].data.push(processed.rawTemp);
+        processChart.data.datasets[1].data.push(processed.cleanTemp);
+        if (processChart.data.labels.length > MAX_POINTS) {
+          processChart.data.labels.shift();
+          processChart.data.datasets[0].data.shift();
+          processChart.data.datasets[1].data.shift();
+        }
+        processChart.update();
+      }
+
       function handleData(rawTemp, rawHumi) {
         firstPacketReceived = true;
         packets++;
@@ -1035,8 +1108,12 @@
           const data = JSON.parse(e.data);
           if (data.type === "monitoring") {
             setMonitoringState(data.enabled);
-          } else if (data.temp && data.humi) {
-            handleData(data.temp, data.humi);
+          } else {
+            const temp = Number(data.temp);
+            const humi = Number(data.humi);
+            if (Number.isFinite(temp) && Number.isFinite(humi)) {
+              handleData(temp, humi);
+            }
           }
         };
         wsConnection.onclose = () => {
