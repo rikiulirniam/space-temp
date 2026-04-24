@@ -31,28 +31,26 @@ db.serialize(() => {
   db.run(
     `INSERT OR IGNORE INTO app_settings (key, value) VALUES ('monitoring_enabled', '0')`,
   );
-
-  db.run(
-    `UPDATE app_settings SET value = '0', updated_at = datetime('now','localtime') WHERE key = 'monitoring_enabled'`,
-  );
 });
 
+// Helper untuk mengirim JSON
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json",
-    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Cache-Control": "no-store, no-cache, must-revalidate",
     Pragma: "no-cache",
     Expires: "0",
   });
   res.end(JSON.stringify(payload));
 }
 
+// Fungsi kontrol monitoring
 function getMonitoringEnabled(callback) {
   db.get(
     `SELECT value FROM app_settings WHERE key = 'monitoring_enabled'`,
     (err, row) => {
       if (err) return callback(err);
-      callback(null, row ? row.value === "1" : true);
+      callback(null, row ? row.value === "1" : false);
     },
   );
 }
@@ -63,15 +61,6 @@ function setMonitoringEnabled(enabled, callback) {
     [enabled ? "1" : "0"],
     callback,
   );
-}
-
-function broadcastMonitoringState(enabled) {
-  const payload = JSON.stringify({ type: "monitoring", enabled });
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(payload);
-    }
-  });
 }
 
 const server = http.createServer((req, res) => {
@@ -90,83 +79,65 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 2. API History (Ambil 50 data terakhir)
+  // 2. API History
   if (method === "GET" && req.url === "/api/history") {
     db.all(
       "SELECT suhu as temp, kelembapan as humi, waktu as time FROM sensor_data ORDER BY id DESC LIMIT 50",
       (err, rows) => {
-        if (err) {
-          return sendJson(res, 500, { error: err.message });
-        }
-        sendJson(res, 200, rows.reverse());
+        if (err) return sendJson(res, 500, { error: err.message });
+        sendJson(res, 200, rows ? rows.reverse() : []);
       },
     );
     return;
   }
 
-  // 3. API Status Monitoring
+  // 3. API Control Status
   if (method === "GET" && req.url === "/api/control/status") {
     getMonitoringEnabled((err, enabled) => {
-      if (err) {
-        return sendJson(res, 500, { error: err.message });
-      }
+      if (err) return sendJson(res, 500, { error: err.message });
       sendJson(res, 200, { monitoringEnabled: enabled });
     });
     return;
   }
 
-  // 4. API Start Monitoring
-  if (method === "POST" && req.url === "/api/control/start") {
-    setMonitoringEnabled(true, (err) => {
-      if (err) {
-        return sendJson(res, 500, { error: err.message });
-      }
-      broadcastMonitoringState(true);
-      sendJson(res, 200, { ok: true, monitoringEnabled: true });
-    });
-    return;
-  }
-
-  // 5. API Stop Monitoring
-  if (method === "POST" && req.url === "/api/control/stop") {
-    setMonitoringEnabled(false, (err) => {
-      if (err) {
-        return sendJson(res, 500, { error: err.message });
-      }
-      broadcastMonitoringState(false);
-      sendJson(res, 200, { ok: true, monitoringEnabled: false });
-    });
-    return;
-  }
-
-  // 6. API Clear Database (hapus semua data sensor)
-  if (method === "POST" && req.url === "/api/db/clear") {
-    db.serialize(() => {
-      db.run("DELETE FROM sensor_data", function onDelete(err) {
-        if (err) {
-          return sendJson(res, 500, { error: err.message });
-        }
-
-        const deletedRows = this.changes || 0;
+  // 4. API Control Actions (Start/Stop/Clear)
+  if (method === "POST") {
+    if (req.url === "/api/control/start") {
+      setMonitoringEnabled(true, (err) => {
+        if (err) return sendJson(res, 500, { error: err.message });
+        sendJson(res, 200, { ok: true, monitoringEnabled: true });
+      });
+      return;
+    }
+    if (req.url === "/api/control/stop") {
+      setMonitoringEnabled(false, (err) => {
+        if (err) return sendJson(res, 500, { error: err.message });
+        sendJson(res, 200, { ok: true, monitoringEnabled: false });
+      });
+      return;
+    }
+    if (req.url === "/api/db/clear") {
+      db.run("DELETE FROM sensor_data", (err) => {
+        if (err) return sendJson(res, 500, { error: err.message });
         db.run("DELETE FROM sqlite_sequence WHERE name = 'sensor_data'", () => {
-          sendJson(res, 200, { ok: true, deletedRows });
+          sendJson(res, 200, { ok: true });
         });
       });
-    });
-    return;
+      return;
+    }
   }
 
-  // 7. API Download CSV
+  // 5. Download CSV
   if (method === "GET" && req.url === "/download") {
     db.all("SELECT * FROM sensor_data ORDER BY waktu DESC", (err, rows) => {
       if (err) return res.end("Gagal mengambil data");
       let csv = "ID,Waktu,Suhu,Kelembapan\n";
-      rows.forEach((r) => {
+      (rows || []).forEach((r) => {
         csv += `${r.id},${r.waktu},${r.suhu},${r.kelembapan}\n`;
       });
       res.writeHead(200, {
         "Content-Type": "text/csv",
-        "Content-Disposition": "attachment; filename=data_sensor_dasihayu.csv",
+        "Content-Disposition": "attachment; filename=sensor_data.csv",
       });
       res.end(csv);
     });
@@ -180,39 +151,35 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws, req) => {
-  const ip = req.socket.remoteAddress;
-  console.log(`📱 Client Konek: ${ip}`);
-
-  getMonitoringEnabled((err, enabled) => {
-    if (!err && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "monitoring", enabled }));
-    }
-  });
+  console.log(`📱 Client Terhubung: ${req.socket.remoteAddress}`);
 
   ws.on("message", (data) => {
     try {
       const parsed = JSON.parse(data.toString());
-      const t = parsed.temp ?? parsed.temperature ?? parsed.t;
-      const h = parsed.humi ?? parsed.humidity ?? parsed.h;
+
+      // PERBAIKAN: Menggunakan operator || untuk kompatibilitas Node.js lama
+      const t =
+        parsed.temp !== undefined
+          ? parsed.temp
+          : parsed.temperature !== undefined
+            ? parsed.temperature
+            : parsed.t;
+      const h =
+        parsed.humi !== undefined
+          ? parsed.humi
+          : parsed.humidity !== undefined
+            ? parsed.humidity
+            : parsed.h;
 
       if (t !== undefined && h !== undefined) {
         getMonitoringEnabled((err, enabled) => {
-          if (err) {
-            console.log("⚠️ Gagal membaca status monitoring:", err.message);
-            return;
-          }
+          if (err || !enabled) return;
 
-          if (!enabled) {
-            return;
-          }
-
-          // Simpan ke SQLite
           db.run(`INSERT INTO sensor_data (suhu, kelembapan) VALUES (?, ?)`, [
             t,
             h,
           ]);
 
-          // Broadcast ke semua Dashboard yang sedang buka
           const payload = JSON.stringify({ temp: t, humi: h });
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
@@ -222,12 +189,11 @@ wss.on("connection", (ws, req) => {
         });
       }
     } catch (e) {
-      console.log("⚠️ Data masuk bukan JSON valid.");
+      console.log("⚠️ Data bukan JSON valid.");
     }
   });
 });
 
 server.listen(PORT, () => {
   console.log(`🚀 Server Dashboard: http://localhost:${PORT}`);
-  console.log(`📡 WebSocket siap menerima data dari ESP32.`);
 });
