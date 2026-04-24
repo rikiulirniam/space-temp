@@ -15,6 +15,7 @@ const db = new sqlite3.Database(DB_FILE, (err) => {
 });
 
 db.serialize(() => {
+  // Simpan data sensor
   db.run(`CREATE TABLE IF NOT EXISTS sensor_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     waktu DATETIME DEFAULT (datetime('now','localtime')),
@@ -22,46 +23,62 @@ db.serialize(() => {
     kelembapan REAL
   )`);
 
+  // Simpan konfigurasi aplikasi (ON/OFF)
   db.run(`CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at DATETIME DEFAULT (datetime('now','localtime'))
   )`);
 
-  db.run(
-    `INSERT OR IGNORE INTO app_settings (key, value) VALUES ('monitoring_enabled', '0')`,
-  );
+  // Set default ke '1' (ON) agar saat pertama install langsung jalan
+  db.run(`INSERT OR IGNORE INTO app_settings (key, value) VALUES ('monitoring_enabled', '1')`);
 });
 
-// Helper untuk mengirim JSON
+// --- HELPER FUNCTIONS ---
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     "Content-Type": "application/json",
     "Cache-Control": "no-store, no-cache, must-revalidate",
-    Pragma: "no-cache",
-    Expires: "0",
+    "Pragma": "no-cache",
+    "Expires": "0",
   });
   res.end(JSON.stringify(payload));
 }
 
-// Fungsi kontrol monitoring
+// Fungsi kirim sinyal ke semua dashboard via WebSocket
+function broadcastToDashboards(payload) {
+  const msg = JSON.stringify(payload);
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg);
+    }
+  });
+}
+
 function getMonitoringEnabled(callback) {
-  db.get(
-    `SELECT value FROM app_settings WHERE key = 'monitoring_enabled'`,
-    (err, row) => {
-      if (err) return callback(err);
-      callback(null, row ? row.value === "1" : false);
-    },
-  );
+  db.get(`SELECT value FROM app_settings WHERE key = 'monitoring_enabled'`, (err, row) => {
+    if (err) return callback(err);
+    callback(null, row ? row.value === "1" : true);
+  });
 }
 
 function setMonitoringEnabled(enabled, callback) {
+  const val = enabled ? "1" : "0";
   db.run(
     `UPDATE app_settings SET value = ?, updated_at = datetime('now','localtime') WHERE key = 'monitoring_enabled'`,
-    [enabled ? "1" : "0"],
-    callback,
+    [val],
+    (err) => {
+      if (!err) {
+        // Beritahu semua dashboard bahwa status berubah
+        broadcastToDashboards({ type: "monitoring", enabled: enabled });
+      }
+      callback(err);
+    }
   );
 }
+
+// --- HTTP SERVER LOGIC ---
 
 const server = http.createServer((req, res) => {
   const method = req.method || "GET";
@@ -79,19 +96,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 2. API History
+  // 2. API History (Ambil 50 data terakhir)
   if (method === "GET" && req.url === "/api/history") {
-    db.all(
-      "SELECT suhu as temp, kelembapan as humi, waktu as time FROM sensor_data ORDER BY id DESC LIMIT 50",
-      (err, rows) => {
-        if (err) return sendJson(res, 500, { error: err.message });
-        sendJson(res, 200, rows ? rows.reverse() : []);
-      },
-    );
+    db.all("SELECT suhu as temp, kelembapan as humi, waktu as time FROM sensor_data ORDER BY id DESC LIMIT 50", (err, rows) => {
+      if (err) return sendJson(res, 500, { error: err.message });
+      sendJson(res, 200, rows ? rows.reverse() : []);
+    });
     return;
   }
 
-  // 3. API Control Status
+  // 3. API Control Status (Cek sedang ON atau OFF)
   if (method === "GET" && req.url === "/api/control/status") {
     getMonitoringEnabled((err, enabled) => {
       if (err) return sendJson(res, 500, { error: err.message });
@@ -100,7 +114,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 4. API Control Actions (Start/Stop/Clear)
+  // 4. API Control Actions
   if (method === "POST") {
     if (req.url === "/api/control/start") {
       setMonitoringEnabled(true, (err) => {
@@ -137,7 +151,7 @@ const server = http.createServer((req, res) => {
       });
       res.writeHead(200, {
         "Content-Type": "text/csv",
-        "Content-Disposition": "attachment; filename=sensor_data.csv",
+        "Content-Disposition": "attachment; filename=sensor_data_dasihayu.csv",
       });
       res.end(csv);
     });
@@ -148,52 +162,46 @@ const server = http.createServer((req, res) => {
   res.end("Not found");
 });
 
+// --- WEBSOCKET LOGIC ---
+
 const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws, req) => {
   console.log(`📱 Client Terhubung: ${req.socket.remoteAddress}`);
 
+  // Kirim status monitoring saat client baru konek
+  getMonitoringEnabled((err, enabled) => {
+    if (!err && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "monitoring", enabled: enabled }));
+    }
+  });
+
   ws.on("message", (data) => {
     try {
       const parsed = JSON.parse(data.toString());
 
-      // PERBAIKAN: Menggunakan operator || untuk kompatibilitas Node.js lama
-      const t =
-        parsed.temp !== undefined
-          ? parsed.temp
-          : parsed.temperature !== undefined
-            ? parsed.temperature
-            : parsed.t;
-      const h =
-        parsed.humi !== undefined
-          ? parsed.humi
-          : parsed.humidity !== undefined
-            ? parsed.humidity
-            : parsed.h;
+      // Normalisasi input (temp/suhu/t)
+      const t = parsed.temp !== undefined ? parsed.temp : (parsed.temperature !== undefined ? parsed.temperature : parsed.t);
+      const h = parsed.humi !== undefined ? parsed.humi : (parsed.humidity !== undefined ? parsed.humidity : parsed.h);
 
       if (t !== undefined && h !== undefined) {
         getMonitoringEnabled((err, enabled) => {
           if (err || !enabled) return;
 
-          db.run(`INSERT INTO sensor_data (suhu, kelembapan) VALUES (?, ?)`, [
-            t,
-            h,
-          ]);
+          // Simpan ke SQLite
+          db.run(`INSERT INTO sensor_data (suhu, kelembapan) VALUES (?, ?)`, [t, h]);
 
-          const payload = JSON.stringify({ temp: t, humi: h });
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(payload);
-            }
-          });
+          // Broadcast data sensor ke semua dashboard
+          broadcastToDashboards({ temp: t, humi: h });
         });
       }
     } catch (e) {
-      console.log("⚠️ Data bukan JSON valid.");
+      console.log("⚠️ Data bukan JSON valid dari ESP32.");
     }
   });
 });
 
 server.listen(PORT, () => {
   console.log(`🚀 Server Dashboard: http://localhost:${PORT}`);
+  console.log(`📡 Menunggu data dari ESP32...`);
 });

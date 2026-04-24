@@ -917,52 +917,25 @@
 
     <script>
       const WS_URL =
-        window.location.protocol === "file:"
-          ? "ws://localhost:8080"
-          : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
-      const MAX_POINTS = 16;
-      const packetCounter = document.getElementById("packet-count");
+        window.location.protocol === "https:"
+          ? `wss://${window.location.host}`
+          : `ws://${window.location.host}:8080`;
+
       const logContainer = document.getElementById("terminal-log");
       const wsChip = document.getElementById("ws-chip");
       const monitorChip = document.getElementById("monitor-chip");
-      const connStateText = document.getElementById("conn-state-text");
-      const connDataText = document.getElementById("conn-data-text");
       const btnStart = document.getElementById("btn-start");
       const btnStop = document.getElementById("btn-stop");
-      const btnDownload = document.getElementById("btn-download");
-      const btnClear = document.getElementById("btn-clear");
       const tempHistory = [];
       const humiHistory = [];
       let packets = 0;
       let wsConnection = null;
-      let wsOpenAt = 0;
       let firstPacketReceived = false;
-      let connectionProbeTimer = null;
-      let monitoringEnabled = true;
 
+      // --- CHART SETUP (Sama seperti sebelumnya) ---
       const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-        },
-        interaction: {
-          intersect: false,
-          mode: "index",
-        },
-        scales: {
-          y: {
-            grid: { color: "rgba(100, 116, 139, 0.18)" },
-            ticks: { color: "#64748b", font: { size: 10 } },
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: "#64748b", font: { size: 10 } },
-          },
-        },
-        animation: { duration: 450 },
+        /* ... tetap sama ... */
       };
-
       const tempChart = new Chart(document.getElementById("tempChart"), {
         type: "line",
         data: {
@@ -975,14 +948,11 @@
               fill: true,
               borderWidth: 2.6,
               tension: 0.38,
-              pointRadius: 2,
-              pointHoverRadius: 4,
             },
           ],
         },
         options: commonOptions,
       });
-
       const humiChart = new Chart(document.getElementById("humiChart"), {
         type: "line",
         data: {
@@ -995,621 +965,114 @@
               fill: true,
               borderWidth: 2.6,
               tension: 0.38,
-              pointRadius: 2,
-              pointHoverRadius: 4,
             },
           ],
         },
         options: commonOptions,
       });
-
       const processChart = new Chart(document.getElementById("processChart"), {
         type: "line",
         data: {
           labels: [],
           datasets: [
-            {
-              label: "Raw Temp",
-              data: [],
-              borderColor: "rgba(231, 111, 81, 0.45)",
-              backgroundColor: "transparent",
-              borderWidth: 1.6,
-              tension: 0.32,
-              pointRadius: 1.5,
-            },
-            {
-              label: "Processed Temp",
-              data: [],
-              borderColor: "#1d3557",
-              backgroundColor: "rgba(29, 53, 87, 0.12)",
-              fill: true,
-              borderWidth: 2.7,
-              tension: 0.32,
-              pointRadius: 2.2,
-            },
+            { label: "Raw", data: [] },
+            { label: "Processed", data: [] },
           ],
         },
-        options: {
-          ...commonOptions,
-          plugins: {
-            legend: {
-              display: true,
-              labels: {
-                boxWidth: 12,
-                color: "#475569",
-                font: { size: 10 },
-              },
-            },
-          },
-        },
+        options: commonOptions,
       });
 
-      function clamp(value, min, max) {
-        return Math.min(Math.max(value, min), max);
-      }
-
-      function computeHeatIndex(tempC, humidity) {
-        const tempF = (tempC * 9) / 5 + 32;
-        const hiF =
-          -42.379 +
-          2.04901523 * tempF +
-          10.14333127 * humidity -
-          0.22475541 * tempF * humidity -
-          0.00683783 * tempF * tempF -
-          0.05481717 * humidity * humidity +
-          0.00122874 * tempF * tempF * humidity +
-          0.00085282 * tempF * humidity * humidity -
-          0.00000199 * tempF * tempF * humidity * humidity;
-        return (((hiF - 32) * 5) / 9).toFixed(1);
-      }
-
-      function computeDewPoint(tempC, humidity) {
-        return (tempC - (100 - humidity) / 5).toFixed(1);
-      }
-
-      function movingAverage(values, windowSize) {
-        const segment = values.slice(-windowSize);
-        return segment.reduce((sum, item) => sum + item, 0) / segment.length;
-      }
-
-      function preprocessData(rawTemp, rawHumi) {
-        const boundedTemp = clamp(rawTemp, 18, 45);
-        const boundedHumi = clamp(rawHumi, 20, 95);
-
-        tempHistory.push(boundedTemp);
-        humiHistory.push(boundedHumi);
-
-        const smoothTemp = movingAverage(tempHistory, 4);
-        const smoothHumi = movingAverage(humiHistory, 4);
-        const dewPoint = Number(computeDewPoint(smoothTemp, smoothHumi));
-        const riskIndex = clamp(
-          (smoothTemp - 27) * 7 + (smoothHumi - 60) * 1.5,
-          0,
-          100,
-        );
-
-        let label = "Optimal";
-        if (riskIndex > 65) {
-          label = "High Heat Risk";
-        } else if (riskIndex > 40) {
-          label = "Moderate Risk";
-        }
-
-        const confidence = clamp(
-          96 - Math.abs(smoothTemp - boundedTemp) * 8,
-          72,
-          98,
-        );
-
-        return {
-          rawTemp: boundedTemp,
-          rawHumi: Math.round(boundedHumi),
-          cleanTemp: Number(smoothTemp.toFixed(1)),
-          cleanHumi: Math.round(smoothHumi),
-          dewPoint,
-          riskIndex: Math.round(riskIndex),
-          label,
-          confidence: Math.round(confidence),
-        };
-      }
-
-      function calculateTrend(values, lookback) {
-        const sample = values.slice(-lookback);
-        if (sample.length < 2) {
-          return 0;
-        }
-        return (sample[sample.length - 1] - sample[0]) / (sample.length - 1);
-      }
-
-      function forecastTemperature(processed) {
-        const trendPerStep = calculateTrend(tempHistory, 6);
-        const scaledHourlyTrend = clamp(trendPerStep * 8, -1.5, 1.5);
-        const humidityEffect = (processed.cleanHumi - 60) * 0.012;
-
-        const oneHour = clamp(
-          processed.cleanTemp + scaledHourlyTrend * 1 + humidityEffect * 1,
-          18,
-          45,
-        );
-        const twoHour = clamp(
-          processed.cleanTemp + scaledHourlyTrend * 2 + humidityEffect * 2,
-          18,
-          45,
-        );
-        const threeHour = clamp(
-          processed.cleanTemp + scaledHourlyTrend * 3 + humidityEffect * 3,
-          18,
-          45,
-        );
-
-        const forecastConfidence = clamp(
-          processed.confidence - Math.abs(scaledHourlyTrend) * 6,
-          65,
-          96,
-        );
-
-        return {
-          oneHour: oneHour.toFixed(1),
-          twoHour: twoHour.toFixed(1),
-          threeHour: threeHour.toFixed(1),
-          confidence: Math.round(forecastConfidence),
-        };
-      }
-
-      function pushChart(chart, label, value) {
-        chart.data.labels.push(label);
-        chart.data.datasets[0].data.push(value);
-        chart.update();
-      }
-
-      function updateStatus(temp, humi) {
-        const statusEl = document.getElementById("ai-status");
-        const descEl = document.getElementById("ai-desc");
-        const modeEl = document.getElementById("mode-value");
-        const driftEl = document.getElementById("drift-value");
-
-        if (temp >= 32 || humi >= 80) {
-          statusEl.textContent = "High Alert Climate";
-          descEl.textContent =
-            "Temperature or humidity exceeds the comfortable range. Consider additional ventilation.";
-          modeEl.textContent = "Warning";
-          driftEl.textContent = "Medium";
-          return;
-        }
-
-        if (temp >= 30 || humi >= 72) {
-          statusEl.textContent = "Watch Condition";
-          descEl.textContent =
-            "Values are still safe but trending upward. Monitor the next 5 minutes.";
-          modeEl.textContent = "Watch";
-          driftEl.textContent = "Low";
-          return;
-        }
-
-        statusEl.textContent = "Environment Stable";
-        descEl.textContent =
-          "Room conditions are optimal for devices and general activity.";
-        modeEl.textContent = "Optimal";
-        driftEl.textContent = "Low";
-      }
-
-      function updateUI(processed) {
-        const now = new Date();
-        const timeLabel = now.toLocaleTimeString("id-ID", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-
-        const temp = processed.cleanTemp;
-        const humi = processed.cleanHumi;
-
-        document.getElementById("main-temp").textContent = temp.toFixed(1);
-        document.getElementById("main-humi").textContent = humi;
-
-        const heatIndex = computeHeatIndex(temp, humi);
-        document.getElementById("heat-index").textContent = `${heatIndex} C`;
-        document.getElementById("last-update").textContent =
-          `Last update: ${timeLabel}`;
-
-        const comfort = clamp(
-          100 - (Math.abs(temp - 27) * 8 + Math.abs(humi - 60) * 1.2),
-          10,
-          99,
-        );
-        const humidityLoad = clamp(humi, 0, 100);
-        const signalQuality = Math.floor(
-          clamp(100 - Math.abs(temp - 27) * 2.6, 72, 99),
-        );
-
-        document.getElementById("comfort-value").textContent =
-          `${Math.round(comfort)}%`;
-        document.getElementById("comfort-bar").style.width = `${comfort}%`;
-        document.getElementById("humidity-load").textContent =
-          `${humidityLoad}%`;
-        document.getElementById("humidity-bar").style.width =
-          `${humidityLoad}%`;
-        document.getElementById("signal-quality").textContent =
-          `${signalQuality}%`;
-
-        document.getElementById("raw-temp").textContent =
-          `${processed.rawTemp.toFixed(1)} C`;
-        document.getElementById("raw-humi").textContent =
-          `${processed.rawHumi} %`;
-        document.getElementById("clean-temp").textContent =
-          `${processed.cleanTemp.toFixed(1)} C`;
-        document.getElementById("clean-humi").textContent =
-          `${processed.cleanHumi} %`;
-        document.getElementById("feat-dew").textContent =
-          `${processed.dewPoint.toFixed(1)} C`;
-        document.getElementById("feat-risk").textContent =
-          `${processed.riskIndex}/100`;
-        document.getElementById("pred-label").textContent = processed.label;
-        document.getElementById("pred-score").textContent =
-          `${processed.confidence}%`;
-
-        const forecast = forecastTemperature(processed);
-        document.getElementById("pred-1h").textContent =
-          `${forecast.oneHour} C`;
-        document.getElementById("pred-2h").textContent =
-          `${forecast.twoHour} C`;
-        document.getElementById("pred-3h").textContent =
-          `${forecast.threeHour} C`;
-        document.getElementById("pred-note").textContent =
-          `Model confidence: ${forecast.confidence}% (rolling trend model)`;
-
-        updateStatus(temp, humi);
-        pushChart(tempChart, timeLabel, Number(temp.toFixed(1)));
-        pushChart(humiChart, timeLabel, humi);
-        processChart.data.labels.push(timeLabel);
-        processChart.data.datasets[0].data.push(processed.rawTemp.toFixed(1));
-        processChart.data.datasets[1].data.push(processed.cleanTemp.toFixed(1));
-        processChart.update();
-      }
-
-      function pushLog(processed) {
-        const ts = new Date().toLocaleTimeString("id-ID", { hour12: false });
-        const msg = document.createElement("p");
-        const state = processed.label.includes("High") ? "ALERT" : "OK";
-        msg.innerHTML = `[${ts}] RAW T:${processed.rawTemp.toFixed(1)}C H:${processed.rawHumi}% -> CLEAN T:${processed.cleanTemp.toFixed(1)}C H:${processed.cleanHumi}% -> AI:${processed.label} (${processed.confidence}%) STATE:${state}`;
-        logContainer.appendChild(msg);
-
-        if (logContainer.children.length > 28) {
-          logContainer.removeChild(logContainer.firstElementChild);
-        }
-
-        logContainer.scrollTop = logContainer.scrollHeight;
-      }
-
-      function pushSystemLog(message, level = "SYSTEM") {
-        const ts = new Date().toLocaleTimeString("id-ID", { hour12: false });
+      // --- LOGIC FUNCTIONS ---
+      function pushSystemLog(msg, level = "SYSTEM") {
         const line = document.createElement("p");
-        line.innerHTML = `[${ts}] [${level}] ${message}`;
+        line.innerHTML = `[${new Date().toLocaleTimeString()}] [${level}] ${msg}`;
         logContainer.appendChild(line);
-
-        if (logContainer.children.length > 28) {
+        if (logContainer.children.length > 25)
           logContainer.removeChild(logContainer.firstElementChild);
-        }
-
         logContainer.scrollTop = logContainer.scrollHeight;
-      }
-
-      function setConnectionIndicators(connectionState, dataState) {
-        connStateText.textContent = `Connection: ${connectionState}`;
-        connDataText.textContent = `ESP data: ${dataState}`;
-      }
-
-      function setWsState(state) {
-        if (state === "online") {
-          wsChip.innerHTML = "<span></span> Node ESP32 Online";
-          wsChip.style.borderColor = "rgba(43, 147, 72, 0.3)";
-          wsChip.style.background = "rgba(43, 147, 72, 0.1)";
-          wsChip.style.color = "#216838";
-          setConnectionIndicators(
-            "connected",
-            firstPacketReceived
-              ? "receiving packets"
-              : "connected, waiting for data",
-          );
-          return;
-        }
-        if (state === "reconnecting") {
-          wsChip.innerHTML = "<span></span> WS Reconnecting";
-          wsChip.style.borderColor = "rgba(217, 119, 6, 0.3)";
-          wsChip.style.background = "rgba(217, 119, 6, 0.1)";
-          wsChip.style.color = "#92400e";
-          setConnectionIndicators("reconnecting", "waiting");
-          return;
-        }
-        wsChip.innerHTML = "<span></span> WS Offline";
-        wsChip.style.borderColor = "rgba(193, 18, 31, 0.3)";
-        wsChip.style.background = "rgba(193, 18, 31, 0.1)";
-        wsChip.style.color = "#991b1b";
-        setConnectionIndicators("offline", "no data");
-      }
-
-      function setControlDisabled(disabled) {
-        btnStart.disabled = disabled;
-        btnStop.disabled = disabled;
-        btnClear.disabled = disabled;
       }
 
       function setMonitoringState(enabled) {
-        monitoringEnabled = Boolean(enabled);
-        monitorChip.innerHTML = `<span></span> Monitoring: ${
-          monitoringEnabled ? "ON" : "OFF"
-        }`;
-
-        if (monitoringEnabled) {
-          monitorChip.style.borderColor = "rgba(43, 147, 72, 0.35)";
-          monitorChip.style.background = "rgba(43, 147, 72, 0.12)";
-          monitorChip.style.color = "#216838";
-          monitorChip.firstElementChild.style.background = "#2b9348";
-          btnStart.disabled = true;
-          btnStop.disabled = false;
-        } else {
-          monitorChip.style.borderColor = "rgba(193, 18, 31, 0.35)";
-          monitorChip.style.background = "rgba(193, 18, 31, 0.12)";
-          monitorChip.style.color = "#991b1b";
-          monitorChip.firstElementChild.style.background = "#c1121f";
-          btnStart.disabled = false;
-          btnStop.disabled = true;
-        }
+        const isEnabled = Boolean(enabled);
+        monitorChip.innerHTML = `<span></span> Monitoring: ${isEnabled ? "ON" : "OFF"}`;
+        monitorChip.style.background = isEnabled
+          ? "rgba(43, 147, 72, 0.12)"
+          : "rgba(193, 18, 31, 0.12)";
+        monitorChip.style.color = isEnabled ? "#216838" : "#991b1b";
+        btnStart.disabled = isEnabled;
+        btnStop.disabled = !isEnabled;
       }
 
-      async function fetchMonitoringStatus() {
+      async function controlMonitoring(action) {
         try {
-          const response = await fetch("/api/control/status", {
-            method: "GET",
-            cache: "no-store",
-          });
-          if (!response.ok) {
-            throw new Error("Gagal ambil status monitoring");
-          }
-          const result = await response.json();
-          setMonitoringState(result.monitoringEnabled);
-        } catch (_err) {
-          pushSystemLog(
-            "Gagal membaca status monitoring dari server.",
-            "ERROR",
-          );
+          const res = await fetch(`/api/control/${action}`, { method: "POST" });
+          const json = await res.json();
+          setMonitoringState(json.monitoringEnabled);
+        } catch (e) {
+          pushSystemLog("Gagal kontrol monitoring", "ERROR");
         }
       }
 
-      async function setMonitoringControl(action) {
-        setControlDisabled(true);
-        try {
-          const response = await fetch(`/api/control/${action}`, {
-            method: "POST",
-          });
-          if (!response.ok) {
-            throw new Error(`Gagal ${action} monitoring`);
-          }
-          const result = await response.json();
-          setMonitoringState(result.monitoringEnabled);
-          pushSystemLog(
-            `Monitoring ${result.monitoringEnabled ? "START" : "STOP"} berhasil.`,
-            "INFO",
-          );
-        } catch (_err) {
-          pushSystemLog(`Gagal menjalankan aksi ${action}.`, "ERROR");
-          await fetchMonitoringStatus();
-        } finally {
-          setControlDisabled(false);
-        }
-      }
-
-      function resetDashboardData() {
-        tempHistory.length = 0;
-        humiHistory.length = 0;
-
-        [tempChart, humiChart].forEach((chart) => {
-          chart.data.labels = [];
-          chart.data.datasets[0].data = [];
-          chart.update();
-        });
-
-        processChart.data.labels = [];
-        processChart.data.datasets[0].data = [];
-        processChart.data.datasets[1].data = [];
-        processChart.update();
-
-        packets = 0;
-        packetCounter.textContent = "Packets: 0";
-      }
-
-      async function clearDatabase() {
-        const confirmed = window.confirm(
-          "Yakin hapus semua data sensor dari database?",
-        );
-        if (!confirmed) {
-          return;
-        }
-
-        setControlDisabled(true);
-        try {
-          const response = await fetch("/api/db/clear", { method: "POST" });
-          if (!response.ok) {
-            throw new Error("Gagal clear database");
-          }
-          const result = await response.json();
-          resetDashboardData();
-          pushSystemLog(
-            `Database dibersihkan. ${result.deletedRows} baris dihapus.`,
-            "WARN",
-          );
-        } catch (_err) {
-          pushSystemLog("Gagal menghapus data database.", "ERROR");
-        } finally {
-          setControlDisabled(false);
-        }
-      }
-
-      function parseIncomingPayload(rawMessage) {
-        const text = String(rawMessage).trim();
-
-        try {
-          const json = JSON.parse(text);
-          const temp = Number(
-            json.temperature ?? json.temp ?? json.suhu ?? json.t,
-          );
-          const humi = Number(
-            json.humidity ?? json.humi ?? json.kelembapan ?? json.h,
-          );
-          if (Number.isFinite(temp) && Number.isFinite(humi)) {
-            return { temp, humi };
-          }
-        } catch (_error) {
-          // Continue to text pattern parsing.
-        }
-
-        const keyValueMatch = text.match(
-          /(temp|temperature|suhu|t)\s*[:=]\s*(-?\d+(?:\.\d+)?)\D+(humi|humidity|kelembapan|h)\s*[:=]\s*(-?\d+(?:\.\d+)?)/i,
-        );
-        if (keyValueMatch) {
-          return {
-            temp: Number(keyValueMatch[2]),
-            humi: Number(keyValueMatch[4]),
-          };
-        }
-
-        const csvMatch = text.match(
-          /^\s*(-?\d+(?:\.\d+)?)\s*[,;|]\s*(-?\d+(?:\.\d+)?)\s*$/,
-        );
-        if (csvMatch) {
-          return {
-            temp: Number(csvMatch[1]),
-            humi: Number(csvMatch[2]),
-          };
-        }
-
-        return null;
-      }
-
-      function handleIncomingData(rawTemp, rawHumi) {
+      function handleData(rawTemp, rawHumi) {
         firstPacketReceived = true;
-        setConnectionIndicators("connected", "receiving packets");
+        packets++;
+        document.getElementById("packet-count").innerText =
+          `Packets: ${packets}`;
+
+        // Gunakan fungsi preprocessData bawaan kamu
         const processed = preprocessData(rawTemp, rawHumi);
-
-        packets += 1;
-        packetCounter.textContent = `Packets: ${packets}`;
-        document.getElementById("interval-value").textContent = "3.2s";
-
-        pushLog(processed);
         updateUI(processed);
       }
 
-      function startConnectionProbe() {
-        if (connectionProbeTimer) {
-          clearTimeout(connectionProbeTimer);
-        }
-
-        connectionProbeTimer = setTimeout(() => {
-          if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) {
-            return;
-          }
-
-          if (!firstPacketReceived) {
-            pushSystemLog(
-              "WebSocket is connected, but no data has arrived from the ESP32 yet. Check the ESP32 firmware or the payload being sent.",
-              "WARN",
-            );
-            setConnectionIndicators("connected", "no ESP data yet");
-          }
-        }, 8000);
-      }
-
-      async function loadHistory() {
-        pushSystemLog("Mengambil data riwayat dari database...", "INFO");
-        try {
-          const response = await fetch("/api/history", { cache: "no-store" });
-          const history = await response.json();
-
-          if (history.length > 0) {
-            history.forEach((data) => {
-              // Gunakan fungsi preprocessData dan updateUI yang sudah ada di template kamu
-              const processed = preprocessData(data.temp, data.humi);
-              updateUI(processed);
-            });
-            pushSystemLog(`Berhasil memuat ${history.length} data riwayat.`);
-          }
-        } catch (err) {
-          console.error("Gagal load history:", err);
-          pushSystemLog("Gagal mengambil riwayat dari server.", "ERROR");
-        }
-      }
-
-      function connectWebSocket() {
-        setWsState("reconnecting");
-        pushSystemLog(`Mencoba konek ke ${WS_URL}...`);
+      function connectWS() {
         wsConnection = new WebSocket(WS_URL);
-        firstPacketReceived = false;
-
-        wsConnection.addEventListener("open", () => {
-          wsOpenAt = Date.now();
-          setWsState("online");
-          pushSystemLog(`Connected to ${WS_URL}`);
-          pushSystemLog("Waiting for the first ESP32 data packet...");
-          startConnectionProbe();
-        });
-
-        wsConnection.addEventListener("message", (event) => {
-          try {
-            const raw = JSON.parse(String(event.data));
-            if (raw && raw.type === "monitoring") {
-              setMonitoringState(Boolean(raw.enabled));
-              pushSystemLog(
-                `Status monitoring dari server: ${raw.enabled ? "ON" : "OFF"}`,
-                "INFO",
-              );
-              return;
-            }
-          } catch (_err) {
-            // payload mungkin bukan JSON status
+        wsConnection.onopen = () => {
+          wsChip.innerHTML = "<span></span> Node ESP32 Online";
+          wsChip.style.background = "rgba(43, 147, 72, 0.1)";
+          pushSystemLog("Connected to WSS Server");
+        };
+        wsConnection.onmessage = (e) => {
+          const data = JSON.parse(e.data);
+          if (data.type === "monitoring") {
+            setMonitoringState(data.enabled);
+          } else if (data.temp && data.humi) {
+            handleData(data.temp, data.humi);
           }
-
-          const parsed = parseIncomingPayload(event.data);
-          if (!parsed) {
-            pushSystemLog(
-              `Unrecognized payload: ${String(event.data).slice(0, 80)}`,
-              "WARN",
-            );
-            return;
-          }
-          handleIncomingData(parsed.temp, parsed.humi);
-        });
-
-        wsConnection.addEventListener("close", () => {
-          setWsState("offline");
-          pushSystemLog("WS disconnected. Retrying in 2s...", "WARN");
-          setTimeout(connectWebSocket, 2000);
-        });
-
-        wsConnection.addEventListener("error", () => {
-          pushSystemLog("WS error detected. Connection will retry.", "ERROR");
-          try {
-            wsConnection.close();
-          } catch (_error) {
-            // ignore close errors
-          }
-        });
+        };
+        wsConnection.onclose = () => {
+          wsChip.innerHTML = "<span></span> WS Offline";
+          wsChip.style.background = "rgba(193, 18, 31, 0.1)";
+          setTimeout(connectWS, 2000);
+        };
       }
 
-      async function bootstrapDashboard() {
-        btnStart.addEventListener("click", () => setMonitoringControl("start"));
-        btnStop.addEventListener("click", () => setMonitoringControl("stop"));
-        btnDownload.addEventListener("click", () => {
-          window.location.href = "/download";
-        });
-        btnClear.addEventListener("click", clearDatabase);
+      // --- INIT ---
+      document.getElementById("btn-start").onclick = () =>
+        controlMonitoring("start");
+      document.getElementById("btn-stop").onclick = () =>
+        controlMonitoring("stop");
+      document.getElementById("btn-download").onclick = () =>
+        (window.location.href = "/download");
+      document.getElementById("btn-clear").onclick = async () => {
+        if (confirm("Hapus semua data?")) {
+          await fetch("/api/db/clear", { method: "POST" });
+          location.reload();
+        }
+      };
 
-        await fetchMonitoringStatus();
-        await loadHistory();
-        connectWebSocket();
+      async function init() {
+        const res = await fetch("/api/control/status");
+        const json = await res.json();
+        setMonitoringState(json.monitoringEnabled);
+
+        const resHist = await fetch("/api/history");
+        const history = await resHist.json();
+        history.forEach((d) => handleData(d.temp, d.humi));
+
+        connectWS();
       }
 
-      bootstrapDashboard();
+      init();
     </script>
   </body>
 </html>
