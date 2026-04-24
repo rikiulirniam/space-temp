@@ -1282,7 +1282,7 @@
       async function loadHistory() {
         pushSystemLog("Mengambil data riwayat dari database...", "INFO");
         try {
-          const response = await fetch("/api/history");
+          const response = await fetch("/api/history", { cache: "no-store" });
           const history = await response.json();
 
           if (history.length > 0) {
@@ -1300,7 +1300,6 @@
       }
 
       function connectWebSocket() {
-        if (packets === 0) loadHistory();
         setWsState("reconnecting");
         pushSystemLog(`Mencoba konek ke ${WS_URL}...`);
         wsConnection = new WebSocket(WS_URL);
@@ -1342,7 +1341,12 @@
         });
       }
 
-      connectWebSocket();
+      async function bootstrapDashboard() {
+        await loadHistory();
+        connectWebSocket();
+      }
+
+      bootstrapDashboard();
     </script>
   </body>
 </html>

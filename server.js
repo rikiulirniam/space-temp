@@ -45,7 +45,12 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify(err));
         return;
       }
-      res.writeHead(200, { "Content-Type": "application/json" });
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0"
+      });
       res.end(JSON.stringify(rows.reverse())); // Urutkan dari lama ke baru
     });
     return;
