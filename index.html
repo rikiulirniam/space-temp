@@ -140,6 +140,97 @@
         box-shadow: 0 0 0 6px rgba(43, 147, 72, 0.2);
       }
 
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .monitor-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        border: 1px solid rgba(30, 64, 175, 0.28);
+        background: rgba(30, 64, 175, 0.1);
+        color: #1e3a8a;
+      }
+
+      .monitor-chip span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #1e3a8a;
+      }
+
+      .control-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .ctrl-btn {
+        border: 1px solid var(--panel-border);
+        background: rgba(255, 255, 255, 0.86);
+        color: #1f2937;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: 0.76rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .ctrl-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(31, 41, 55, 0.12);
+      }
+
+      .ctrl-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .ctrl-btn.start {
+        border-color: rgba(43, 147, 72, 0.35);
+        background: rgba(43, 147, 72, 0.14);
+        color: #216838;
+      }
+
+      .ctrl-btn.stop {
+        border-color: rgba(217, 119, 6, 0.35);
+        background: rgba(217, 119, 6, 0.14);
+        color: #92400e;
+      }
+
+      .ctrl-btn.download {
+        border-color: rgba(30, 64, 175, 0.35);
+        background: rgba(30, 64, 175, 0.12);
+        color: #1e40af;
+      }
+
+      .ctrl-btn.clear {
+        border-color: rgba(193, 18, 31, 0.35);
+        background: rgba(193, 18, 31, 0.12);
+        color: #991b1b;
+      }
+
       .hero {
         display: grid;
         grid-template-columns: 1.3fr 1fr;
@@ -584,6 +675,12 @@
           align-items: flex-start;
         }
 
+        .topbar-right,
+        .control-row {
+          width: 100%;
+          justify-content: flex-start;
+        }
+
         .hero-grid {
           grid-template-columns: 1fr;
         }
@@ -606,7 +703,28 @@
             <p class="subtitle">ESP32 + DHT22 Telemetry Engine</p>
           </div>
         </div>
-        <div class="status-chip" id="ws-chip"><span></span> WS Connecting</div>
+        <div class="topbar-right">
+          <div class="status-chip" id="ws-chip">
+            <span></span> WS Connecting
+          </div>
+          <div class="monitor-chip" id="monitor-chip">
+            <span></span> Monitoring: --
+          </div>
+          <div class="control-row">
+            <button class="ctrl-btn start" id="btn-start" type="button">
+              Start
+            </button>
+            <button class="ctrl-btn stop" id="btn-stop" type="button">
+              Stop
+            </button>
+            <button class="ctrl-btn download" id="btn-download" type="button">
+              Download CSV
+            </button>
+            <button class="ctrl-btn clear" id="btn-clear" type="button">
+              Delete DB
+            </button>
+          </div>
+        </div>
       </header>
 
       <section class="hero">
@@ -806,8 +924,13 @@
       const packetCounter = document.getElementById("packet-count");
       const logContainer = document.getElementById("terminal-log");
       const wsChip = document.getElementById("ws-chip");
+      const monitorChip = document.getElementById("monitor-chip");
       const connStateText = document.getElementById("conn-state-text");
       const connDataText = document.getElementById("conn-data-text");
+      const btnStart = document.getElementById("btn-start");
+      const btnStop = document.getElementById("btn-stop");
+      const btnDownload = document.getElementById("btn-download");
+      const btnClear = document.getElementById("btn-clear");
       const tempHistory = [];
       const humiHistory = [];
       let packets = 0;
@@ -815,6 +938,7 @@
       let wsOpenAt = 0;
       let firstPacketReceived = false;
       let connectionProbeTimer = null;
+      let monitoringEnabled = true;
 
       const commonOptions = {
         responsive: true,
@@ -1205,6 +1329,123 @@
         setConnectionIndicators("offline", "no data");
       }
 
+      function setControlDisabled(disabled) {
+        btnStart.disabled = disabled;
+        btnStop.disabled = disabled;
+        btnClear.disabled = disabled;
+      }
+
+      function setMonitoringState(enabled) {
+        monitoringEnabled = Boolean(enabled);
+        monitorChip.innerHTML = `<span></span> Monitoring: ${
+          monitoringEnabled ? "ON" : "OFF"
+        }`;
+
+        if (monitoringEnabled) {
+          monitorChip.style.borderColor = "rgba(43, 147, 72, 0.35)";
+          monitorChip.style.background = "rgba(43, 147, 72, 0.12)";
+          monitorChip.style.color = "#216838";
+          monitorChip.firstElementChild.style.background = "#2b9348";
+          btnStart.disabled = true;
+          btnStop.disabled = false;
+        } else {
+          monitorChip.style.borderColor = "rgba(193, 18, 31, 0.35)";
+          monitorChip.style.background = "rgba(193, 18, 31, 0.12)";
+          monitorChip.style.color = "#991b1b";
+          monitorChip.firstElementChild.style.background = "#c1121f";
+          btnStart.disabled = false;
+          btnStop.disabled = true;
+        }
+      }
+
+      async function fetchMonitoringStatus() {
+        try {
+          const response = await fetch("/api/control/status", {
+            method: "GET",
+            cache: "no-store",
+          });
+          if (!response.ok) {
+            throw new Error("Gagal ambil status monitoring");
+          }
+          const result = await response.json();
+          setMonitoringState(result.monitoringEnabled);
+        } catch (_err) {
+          pushSystemLog(
+            "Gagal membaca status monitoring dari server.",
+            "ERROR",
+          );
+        }
+      }
+
+      async function setMonitoringControl(action) {
+        setControlDisabled(true);
+        try {
+          const response = await fetch(`/api/control/${action}`, {
+            method: "POST",
+          });
+          if (!response.ok) {
+            throw new Error(`Gagal ${action} monitoring`);
+          }
+          const result = await response.json();
+          setMonitoringState(result.monitoringEnabled);
+          pushSystemLog(
+            `Monitoring ${result.monitoringEnabled ? "START" : "STOP"} berhasil.`,
+            "INFO",
+          );
+        } catch (_err) {
+          pushSystemLog(`Gagal menjalankan aksi ${action}.`, "ERROR");
+          await fetchMonitoringStatus();
+        } finally {
+          setControlDisabled(false);
+        }
+      }
+
+      function resetDashboardData() {
+        tempHistory.length = 0;
+        humiHistory.length = 0;
+
+        [tempChart, humiChart].forEach((chart) => {
+          chart.data.labels = [];
+          chart.data.datasets[0].data = [];
+          chart.update();
+        });
+
+        processChart.data.labels = [];
+        processChart.data.datasets[0].data = [];
+        processChart.data.datasets[1].data = [];
+        processChart.update();
+
+        packets = 0;
+        packetCounter.textContent = "Packets: 0";
+      }
+
+      async function clearDatabase() {
+        const confirmed = window.confirm(
+          "Yakin hapus semua data sensor dari database?",
+        );
+        if (!confirmed) {
+          return;
+        }
+
+        setControlDisabled(true);
+        try {
+          const response = await fetch("/api/db/clear", { method: "POST" });
+          if (!response.ok) {
+            throw new Error("Gagal clear database");
+          }
+          const result = await response.json();
+          resetDashboardData();
+          pushSystemLog(
+            `Database dibersihkan. ${result.deletedRows} baris dihapus.`,
+            "WARN",
+          );
+        } catch (_err) {
+          pushSystemLog("Gagal menghapus data database.", "ERROR");
+        } finally {
+          setControlDisabled(false);
+        }
+      }
+
       function parseIncomingPayload(rawMessage) {
         const text = String(rawMessage).trim();
 
@@ -1314,6 +1555,20 @@
         });
 
         wsConnection.addEventListener("message", (event) => {
+          try {
+            const raw = JSON.parse(String(event.data));
+            if (raw && raw.type === "monitoring") {
+              setMonitoringState(Boolean(raw.enabled));
+              pushSystemLog(
+                `Status monitoring dari server: ${raw.enabled ? "ON" : "OFF"}`,
+                "INFO",
+              );
+              return;
+            }
+          } catch (_err) {
+            // payload mungkin bukan JSON status
+          }
+
           const parsed = parseIncomingPayload(event.data);
           if (!parsed) {
             pushSystemLog(
@@ -1342,6 +1597,14 @@
       }
 
       async function bootstrapDashboard() {
+        btnStart.addEventListener("click", () => setMonitoringControl("start"));
+        btnStop.addEventListener("click", () => setMonitoringControl("stop"));
+        btnDownload.addEventListener("click", () => {
+          window.location.href = "/download";
+        });
+        btnClear.addEventListener("click", clearDatabase);
+
+        await fetchMonitoringStatus();
         await loadHistory();
         connectWebSocket();
       }
