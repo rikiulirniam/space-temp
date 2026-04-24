@@ -3,1037 +3,474 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ESP32 DHT22 | Ultimate Climate Console</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <title>DHT22 Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-      :root {
-        --bg-0: #f8f7f1;
-        --bg-1: #f1ecdf;
-        --panel: rgba(255, 255, 255, 0.72);
-        --panel-border: rgba(45, 52, 64, 0.12);
-        --text-main: #1f2937;
-        --text-soft: #6b7280;
-        --temp: #e76f51;
-        --humi: #2a9d8f;
-        --ok: #2b9348;
-        --warn: #d97706;
-        --danger: #c1121f;
-        --shadow: 0 12px 40px rgba(31, 41, 55, 0.12);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: "Space Grotesk", sans-serif;
-        color: var(--text-main);
-        background:
-          radial-gradient(
-            circle at 15% 15%,
-            rgba(231, 111, 81, 0.28),
-            transparent 42%
-          ),
-          radial-gradient(
-            circle at 82% 10%,
-            rgba(42, 157, 143, 0.3),
-            transparent 45%
-          ),
-          linear-gradient(135deg, var(--bg-0), var(--bg-1));
-        overflow-x: hidden;
-      }
-
-      .noise {
-        pointer-events: none;
-        position: fixed;
-        inset: 0;
-        opacity: 0.22;
-        background-image: radial-gradient(
-          rgba(33, 37, 41, 0.12) 0.6px,
-          transparent 0.6px
-        );
-        background-size: 3px 3px;
-        mix-blend-mode: multiply;
-      }
-
-      .layout {
-        width: min(1150px, 92vw);
-        margin: 0 auto;
-        padding: 26px 0 40px;
-        position: relative;
-        z-index: 1;
-      }
-
-      .glass {
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        box-shadow: var(--shadow);
-        border-radius: 24px;
-        backdrop-filter: blur(12px);
-      }
-
-      .topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 14px;
-        margin-bottom: 18px;
-        padding: 14px 18px;
-      }
-
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .brand-dot {
-        width: 13px;
-        height: 13px;
-        border-radius: 50%;
-        background: linear-gradient(140deg, #f4a261, #e76f51);
-        box-shadow: 0 0 0 7px rgba(231, 111, 81, 0.12);
-        animation: softPulse 2s ease-in-out infinite alternate;
-      }
-
-      .headline {
-        font-family: "Sora", sans-serif;
-        font-size: clamp(1.3rem, 2vw, 1.65rem);
-        margin: 0;
-        letter-spacing: -0.02em;
-      }
-
-      .subtitle {
-        margin: 2px 0 0;
-        color: var(--text-soft);
-        font-size: 0.82rem;
-      }
-
-      .status-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        border: 1px solid rgba(43, 147, 72, 0.3);
-        background: rgba(43, 147, 72, 0.1);
-        color: #216838;
-        border-radius: 999px;
-        padding: 8px 13px;
-        font-size: 0.74rem;
-        letter-spacing: 0.08em;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-
-      .status-chip span {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #2b9348;
-        box-shadow: 0 0 0 6px rgba(43, 147, 72, 0.2);
-      }
-
-      .topbar-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-
-      .monitor-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        border-radius: 999px;
-        padding: 8px 12px;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-        border: 1px solid rgba(30, 64, 175, 0.28);
-        background: rgba(30, 64, 175, 0.1);
-        color: #1e3a8a;
-      }
-
-      .monitor-chip span {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #1e3a8a;
-      }
-
-      .control-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-
-      .ctrl-btn {
-        border: 1px solid var(--panel-border);
-        background: rgba(255, 255, 255, 0.86);
-        color: #1f2937;
-        border-radius: 10px;
-        padding: 8px 12px;
-        font-family: "Space Grotesk", sans-serif;
-        font-weight: 700;
-        font-size: 0.76rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        cursor: pointer;
-        transition:
-          transform 0.15s ease,
-          box-shadow 0.2s ease;
-      }
-
-      .ctrl-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(31, 41, 55, 0.12);
-      }
-
-      .ctrl-btn:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-      }
-
-      .ctrl-btn.start {
-        border-color: rgba(43, 147, 72, 0.35);
-        background: rgba(43, 147, 72, 0.14);
-        color: #216838;
-      }
-
-      .ctrl-btn.stop {
-        border-color: rgba(217, 119, 6, 0.35);
-        background: rgba(217, 119, 6, 0.14);
-        color: #92400e;
-      }
-
-      .ctrl-btn.download {
-        border-color: rgba(30, 64, 175, 0.35);
-        background: rgba(30, 64, 175, 0.12);
-        color: #1e40af;
-      }
-
-      .ctrl-btn.clear {
-        border-color: rgba(193, 18, 31, 0.35);
-        background: rgba(193, 18, 31, 0.12);
-        color: #991b1b;
-      }
-
-      .hero {
-        display: grid;
-        grid-template-columns: 1.3fr 1fr;
-        gap: 16px;
-        margin-bottom: 16px;
-      }
-
-      .hero-main {
-        padding: 20px;
-        position: relative;
-        overflow: hidden;
-      }
-
-      .hero-main::after {
-        content: "";
-        position: absolute;
-        width: 280px;
-        height: 280px;
-        border-radius: 50%;
-        right: -80px;
-        top: -90px;
-        background: radial-gradient(
-          circle,
-          rgba(231, 111, 81, 0.24),
-          rgba(231, 111, 81, 0)
-        );
-        pointer-events: none;
-      }
-
-      .hero-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        margin-top: 14px;
-      }
-
-      .metric {
-        border: 1px solid var(--panel-border);
-        border-radius: 16px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.65);
-        transform: translateY(10px);
-        opacity: 0;
-        animation: reveal 0.7s ease forwards;
-      }
-
-      .metric:nth-child(2) {
-        animation-delay: 0.08s;
-      }
-      .metric:nth-child(3) {
-        animation-delay: 0.16s;
-      }
-      .metric:nth-child(4) {
-        animation-delay: 0.24s;
-      }
-
-      .metric p {
-        margin: 0;
-        color: var(--text-soft);
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-weight: 700;
-      }
-
-      .metric strong {
-        display: block;
-        margin-top: 6px;
-        font-size: 1.7rem;
-        line-height: 1;
-        font-family: "Sora", sans-serif;
-      }
-
-      .metric small {
-        color: var(--text-soft);
-        font-size: 0.74rem;
-      }
-
-      .temp strong {
-        color: var(--temp);
-      }
-      .humi strong {
-        color: var(--humi);
-      }
-
-      .hero-side {
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        width: fit-content;
-        background: rgba(15, 23, 42, 0.08);
-        color: #334155;
-        border-radius: 999px;
-        padding: 7px 12px;
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-      }
-
-      .badge::before {
-        content: "";
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: #2a9d8f;
-      }
-
-      .status-title {
-        font-family: "Sora", sans-serif;
-        font-size: 1.15rem;
-        margin: 2px 0;
-      }
-
-      .status-desc {
-        margin: 0;
-        color: var(--text-soft);
-        line-height: 1.5;
-        font-size: 0.92rem;
-      }
-
-      .meter-wrap {
-        margin-top: 12px;
-      }
-
-      .meter-label {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.75rem;
-        color: var(--text-soft);
-        margin-bottom: 6px;
-      }
-
-      .meter {
-        height: 10px;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, 0.2);
-        overflow: hidden;
-      }
-
-      .meter > div {
-        height: 100%;
-        width: 0;
-        border-radius: 999px;
-        transition: width 0.45s ease;
-        background: linear-gradient(90deg, #2a9d8f, #e9c46a, #e76f51);
-      }
-
-      .forecast-wrap {
-        margin-top: 12px;
-        border: 1px solid var(--panel-border);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.66);
-        padding: 11px;
-      }
-
-      .forecast-wrap h4 {
-        margin: 0 0 8px;
-        font-size: 0.72rem;
-        letter-spacing: 0.09em;
-        text-transform: uppercase;
-        color: #475569;
-      }
-
-      .forecast-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-      }
-
-      .forecast-card {
-        border: 1px solid var(--panel-border);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, 0.9);
-        padding: 8px;
-        text-align: center;
-      }
-
-      .forecast-card p {
-        margin: 0;
-        color: #64748b;
-        font-size: 0.66rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-weight: 700;
-      }
-
-      .forecast-card strong {
-        display: block;
-        margin-top: 4px;
-        font-family: "Sora", sans-serif;
-        color: #1d3557;
-        font-size: 1rem;
-      }
-
-      .forecast-note {
-        margin: 8px 0 0;
-        font-size: 0.75rem;
-        color: #64748b;
-      }
-
-      .grid-main {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 16px;
-      }
-
-      .pipeline {
-        margin-bottom: 16px;
-        padding: 16px;
-      }
-
-      .pipeline-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        align-items: center;
-        margin-bottom: 12px;
-      }
-
-      .pipeline-head h3 {
-        margin: 0;
-        font-size: 0.84rem;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        color: var(--text-soft);
-      }
-
-      .pipe-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 11px;
-      }
-
-      .pipe-step {
-        padding: 12px;
-        border-radius: 14px;
-        border: 1px solid var(--panel-border);
-        background: rgba(255, 255, 255, 0.68);
-      }
-
-      .pipe-step h4 {
-        margin: 0 0 7px;
-        font-size: 0.71rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #475569;
-      }
-
-      .pipe-step p {
-        margin: 4px 0;
-        font-size: 0.84rem;
-        color: #334155;
-      }
-
-      .pipe-step p strong {
-        font-family: "Sora", sans-serif;
-      }
-
-      .pipeline-chart {
-        margin-top: 12px;
-        height: 180px;
-      }
-
-      .panel {
-        padding: 16px;
-      }
-
-      .panel-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-
-      .panel-head h3 {
-        margin: 0;
-        font-size: 0.8rem;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        color: var(--text-soft);
-      }
-
-      .panel-tag {
-        font-size: 0.67rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: #475569;
-        background: rgba(148, 163, 184, 0.18);
-        border-radius: 999px;
-        padding: 5px 9px;
-        font-weight: 700;
-      }
-
-      .chart-box {
-        height: 235px;
-      }
-
-      .bottom {
-        display: grid;
-        grid-template-columns: 1.15fr 0.85fr;
-        gap: 16px;
-      }
-
-      .log-shell {
-        overflow: hidden;
-        padding: 0;
-      }
-
-      .log-head {
-        padding: 10px 14px;
-        border-bottom: 1px solid var(--panel-border);
-        background: rgba(15, 23, 42, 0.05);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.72rem;
-        color: #475569;
-        text-transform: uppercase;
-        letter-spacing: 0.11em;
-        font-weight: 700;
-      }
-
-      #terminal-log {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.8rem;
-        height: 210px;
-        overflow-y: auto;
-        padding: 12px 14px;
-        color: #334155;
-        background: rgba(248, 250, 252, 0.55);
-      }
-
-      #terminal-log p {
-        margin: 0 0 7px;
-        line-height: 1.35;
-      }
-
-      #terminal-log::-webkit-scrollbar {
-        width: 7px;
-      }
-      #terminal-log::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 999px;
-      }
-
-      .mini-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 11px;
-      }
-
-      .mini-list li {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 10px;
-        align-items: center;
-        background: rgba(255, 255, 255, 0.62);
-        border: 1px solid var(--panel-border);
-        border-radius: 14px;
-        padding: 10px;
-        font-size: 0.84rem;
-      }
-
-      .node {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-      }
-
-      .node.temp {
-        background: var(--temp);
-      }
-      .node.humi {
-        background: var(--humi);
-      }
-      .node.stat {
-        background: #64748b;
-      }
-
-      .footer {
-        margin-top: 16px;
-        text-align: center;
-        color: #64748b;
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        font-weight: 700;
-      }
-
-      @keyframes reveal {
-        from {
-          opacity: 0;
-          transform: translateY(10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      @keyframes softPulse {
-        from {
-          transform: scale(0.97);
-        }
-        to {
-          transform: scale(1.05);
-        }
-      }
-
-      @media (max-width: 980px) {
-        .hero,
-        .grid-main,
-        .bottom {
-          grid-template-columns: 1fr;
-        }
-
-        .pipe-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .chart-box {
-          height: 210px;
-        }
-      }
-
-      @media (max-width: 560px) {
-        .topbar {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-
-        .topbar-right,
-        .control-row {
-          width: 100%;
-          justify-content: flex-start;
-        }
-
-        .hero-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .pipe-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
   </head>
-  <body>
-    <div class="noise"></div>
-
-    <main class="layout">
-      <header class="glass topbar">
-        <div class="brand">
-          <div class="brand-dot"></div>
+  <body class="min-h-screen bg-gradient-to-br from-amber-50 via-stone-100 to-emerald-50 text-slate-800">
+    <main class="mx-auto w-[92%] max-w-7xl py-6">
+      <section class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-lg backdrop-blur">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 class="headline">Ultimate Climate Console</h1>
-            <p class="subtitle">ESP32 + DHT22 Telemetry Engine</p>
-          </div>
-        </div>
-        <div class="topbar-right">
-          <div class="status-chip" id="ws-chip">
-            <span></span> WS Connecting
-          </div>
-          <div class="monitor-chip" id="monitor-chip">
-            <span></span> Monitoring: --
-          </div>
-          <div class="control-row">
-            <button class="ctrl-btn start" id="btn-start" type="button">
-              Start
-            </button>
-            <button class="ctrl-btn stop" id="btn-stop" type="button">
-              Stop
-            </button>
-            <button class="ctrl-btn download" id="btn-download" type="button">
-              Download CSV
-            </button>
-            <button class="ctrl-btn clear" id="btn-clear" type="button">
-              Delete DB
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <section class="hero">
-        <article class="glass hero-main">
-          <div>
-            <span class="badge">Live Sensor Readings</span>
-            <h2 class="status-title" id="ai-status">Environment Stable</h2>
-            <p class="status-desc" id="ai-desc">
-              Waiting for the first DHT22 data packet.
-            </p>
+            <h1 class="text-2xl font-extrabold tracking-tight">DHT22 Monitoring Dashboard</h1>
+            <p class="mt-1 text-sm text-slate-500">ESP32 telemetry with local/production auto routing</p>
+            <p id="runtime-text" class="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Runtime: 00:00:00</p>
           </div>
 
-          <div class="hero-grid">
-            <div class="metric temp">
-              <p>Temperature</p>
-              <strong><span id="main-temp">28.0</span> C</strong>
-              <small>Range ideal: 24 C - 30 C</small>
-            </div>
-            <div class="metric humi">
-              <p>Humidity</p>
-              <strong><span id="main-humi">60</span> %</strong>
-              <small>Range ideal: 45 % - 70 %</small>
-            </div>
-            <div class="metric">
-              <p>Heat Index</p>
-              <strong id="heat-index">30.1</strong>
-              <small id="last-update">Last update: --:--:--</small>
-            </div>
-            <div class="metric">
-              <p>Signal Quality</p>
-              <strong id="signal-quality">96%</strong>
-              <small>WiFi RSSI estimation</small>
-            </div>
-          </div>
-        </article>
-
-        <article class="glass hero-side">
-          <div>
-            <span class="badge">Predictive Safety Meter</span>
-            <h2 class="status-title">Comfort Level</h2>
-            <p class="status-desc">
-              Comfort score is calculated from temperature and humidity for
-              indoor spaces.
-            </p>
-          </div>
-
-          <div class="meter-wrap">
-            <div class="meter-label">
-              <span>Comfort score</span>
-              <span id="comfort-value">82%</span>
-            </div>
-            <div class="meter"><div id="comfort-bar"></div></div>
-          </div>
-
-          <div class="meter-wrap">
-            <div class="meter-label">
-              <span>Humidity load</span>
-              <span id="humidity-load">60%</span>
-            </div>
-            <div class="meter"><div id="humidity-bar"></div></div>
-          </div>
-
-          <div class="forecast-wrap">
-            <h4>Temperature Forecast</h4>
-            <div class="forecast-grid">
-              <div class="forecast-card">
-                <p>+1 Hour</p>
-                <strong id="pred-1h">--</strong>
+          <div class="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
+            <div class="flex flex-wrap gap-2">
+              <div id="ws-chip" class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider">
+                <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+                Dashboard: Connecting
               </div>
-              <div class="forecast-card">
-                <p>+2 Hour</p>
-                <strong id="pred-2h">--</strong>
+              <div id="monitor-chip" class="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-700">
+                <span class="h-2 w-2 rounded-full bg-rose-600"></span>
+                Monitoring: OFF
               </div>
-              <div class="forecast-card">
-                <p>+3 Hour</p>
-                <strong id="pred-3h">--</strong>
+              <div id="esp-chip" class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                <span class="h-2 w-2 rounded-full bg-amber-600"></span>
+                ESP: Searching
+              </div>
+              <div id="presence-chip" class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                <span class="h-2 w-2 rounded-full bg-slate-600"></span>
+                Presence: Empty
               </div>
             </div>
-            <p class="forecast-note" id="pred-note">Model confidence: --</p>
+
+            <div class="flex flex-wrap gap-2">
+              <button id="btn-start" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-emerald-700 transition hover:-translate-y-0.5">Start</button>
+              <button id="btn-stop" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-700 transition hover:-translate-y-0.5">Stop</button>
+              <button id="btn-presence-on" class="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-fuchsia-700 transition hover:-translate-y-0.5">Mark Occupied</button>
+              <button id="btn-presence-off" class="rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-cyan-700 transition hover:-translate-y-0.5">Mark Empty</button>
+              <button id="btn-download-presence" class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-violet-700 transition hover:-translate-y-0.5">Export CSV</button>
+              <button id="btn-clear" class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-rose-700 transition hover:-translate-y-0.5">Delete DB</button>
+            </div>
           </div>
-        </article>
-      </section>
-
-      <section class="grid-main">
-        <article class="glass panel">
-          <div class="panel-head">
-            <h3>Temperature Trend</h3>
-            <span class="panel-tag">Realtime</span>
-          </div>
-          <div class="chart-box"><canvas id="tempChart"></canvas></div>
-        </article>
-
-        <article class="glass panel">
-          <div class="panel-head">
-            <h3>Humidity Trend</h3>
-            <span class="panel-tag">Realtime</span>
-          </div>
-          <div class="chart-box"><canvas id="humiChart"></canvas></div>
-        </article>
-      </section>
-
-      <section class="glass pipeline">
-        <div class="pipeline-head">
-          <h3>AI Data Processing Pipeline</h3>
-          <span class="panel-tag">Raw -> Clean -> Feature -> Prediction</span>
-        </div>
-
-        <div class="pipe-grid">
-          <article class="pipe-step">
-            <h4>Raw Packet</h4>
-            <p>Temp: <strong id="raw-temp">--</strong></p>
-            <p>Hum: <strong id="raw-humi">--</strong></p>
-          </article>
-
-          <article class="pipe-step">
-            <h4>Cleaning + Smoothing</h4>
-            <p>Temp: <strong id="clean-temp">--</strong></p>
-            <p>Hum: <strong id="clean-humi">--</strong></p>
-          </article>
-
-          <article class="pipe-step">
-            <h4>Feature Engineering</h4>
-            <p>Dew Point: <strong id="feat-dew">--</strong></p>
-            <p>Risk Index: <strong id="feat-risk">--</strong></p>
-          </article>
-
-          <article class="pipe-step">
-            <h4>AI Inference</h4>
-            <p>Class: <strong id="pred-label">--</strong></p>
-            <p>Confidence: <strong id="pred-score">--</strong></p>
-          </article>
-        </div>
-
-        <div class="pipeline-chart">
-          <canvas id="processChart"></canvas>
         </div>
       </section>
 
-      <section class="bottom">
-        <article class="glass log-shell">
-          <div class="log-head">
-            <span>Telemetry Console</span>
-            <span id="packet-count">Packets: 0</span>
-          </div>
-          <div
-            class="log-head"
-            style="
-              border-top: 1px solid var(--panel-border);
-              border-bottom: 1px solid var(--panel-border);
-              background: rgba(15, 23, 42, 0.03);
-            "
-          >
-            <span id="conn-state-text">Connection: checking...</span>
-            <span id="conn-data-text">ESP data: waiting</span>
-          </div>
-          <div id="terminal-log">
-            <p>[SYSTEM] Boot sequence ready. Waiting for ESP32 stream...</p>
-          </div>
+      <section class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Temperature</p>
+          <p id="main-temp" class="mt-2 text-3xl font-extrabold text-orange-600">--</p>
+          <p id="last-update" class="mt-1 text-xs text-slate-500">Last update: --:--:--</p>
         </article>
-
-        <article class="glass panel">
-          <div class="panel-head">
-            <h3>Node Diagnostics</h3>
-            <span class="panel-tag">DHT22</span>
-          </div>
-          <ul class="mini-list">
-            <li>
-              <span class="node temp"></span>
-              <span>Sampling interval</span>
-              <strong id="interval-value">4.0s</strong>
-            </li>
-            <li>
-              <span class="node humi"></span>
-              <span>Humidity drift</span>
-              <strong id="drift-value">Low</strong>
-            </li>
-            <li>
-              <span class="node stat"></span>
-              <span>Status mode</span>
-              <strong id="mode-value">Optimal</strong>
-            </li>
-          </ul>
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Humidity</p>
+          <p id="main-humi" class="mt-2 text-3xl font-extrabold text-teal-600">--</p>
+          <p id="packet-count" class="mt-1 text-xs text-slate-500">Packets: 0</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Heat Index</p>
+          <p id="heat-index" class="mt-2 text-3xl font-extrabold text-red-600">--</p>
+          <p class="mt-1 text-xs text-slate-500">Calculated from temperature and humidity</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avg Temp (Occupied)</p>
+          <p id="avg-temp-occupied" class="mt-2 text-3xl font-extrabold text-fuchsia-600">--</p>
+          <p id="occupied-samples" class="mt-1 text-xs text-slate-500">Samples: 0</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avg Temp (Empty)</p>
+          <p id="avg-temp-empty" class="mt-2 text-3xl font-extrabold text-cyan-600">--</p>
+          <p id="empty-samples" class="mt-1 text-xs text-slate-500">Samples: 0</p>
+        </article>
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Presence Delta</p>
+          <p id="temp-delta" class="mt-2 text-3xl font-extrabold text-violet-600">--</p>
+          <p class="mt-1 text-xs text-slate-500">Occupied minus Empty temperature</p>
         </article>
       </section>
 
-      <footer class="footer">
-        2026 | Sensor Node 01 | ESP32 - DHT22 Control Deck
-      </footer>
+      <section class="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Temperature Trend</h3>
+            <span class="text-[11px] font-semibold text-slate-400">Realtime</span>
+          </div>
+          <canvas id="tempChart" height="130"></canvas>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Humidity Trend</h3>
+            <span class="text-[11px] font-semibold text-slate-400">Realtime</span>
+          </div>
+          <canvas id="humiChart" height="130"></canvas>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Heat Index Trend</h3>
+            <span class="text-[11px] font-semibold text-slate-400">Derived Metric</span>
+          </div>
+          <canvas id="heatChart" height="130"></canvas>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Dew Point Trend</h3>
+            <span class="text-[11px] font-semibold text-slate-400">Derived Metric</span>
+          </div>
+          <canvas id="dewChart" height="130"></canvas>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Temp vs Humidity Correlation</h3>
+            <span class="text-[11px] font-semibold text-slate-400">Scatter (Last 50 points)</span>
+          </div>
+          <canvas id="scatterChart" height="120"></canvas>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2">
+          <div class="mb-2 flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Human Presence Impact (Avg Temperature)</h3>
+            <span class="text-[11px] font-semibold text-slate-400">Based on labeled occupancy</span>
+          </div>
+          <canvas id="presenceCompareChart" height="115"></canvas>
+        </article>
+      </section>
+
+      <section class="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+        <div class="mb-2 flex items-center justify-between">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Event Log</h3>
+          <span class="text-[11px] font-semibold text-slate-400">Server and ESP activity</span>
+        </div>
+        <div id="terminal-log" class="max-h-64 min-h-40 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-3 font-mono text-xs text-emerald-200"></div>
+      </section>
+
+      <p class="mt-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">ESP32 DHT22 Monitoring Stack</p>
     </main>
 
     <script>
-      const WS_URL = "wss://temp.dasihayu.my.id";
+      const PROD_HOST = "temp.dasihayu.my.id";
+      const isProduction = window.location.hostname === PROD_HOST;
+      const API_BASE = isProduction ? "" : "http://localhost:8080";
+      const WS_URL = isProduction ? `wss://${PROD_HOST}` : "ws://localhost:8080";
 
-      const logContainer = document.getElementById("terminal-log");
+      function apiUrl(path) {
+        return `${API_BASE}${path}`;
+      }
+
       const wsChip = document.getElementById("ws-chip");
       const monitorChip = document.getElementById("monitor-chip");
+      const espChip = document.getElementById("esp-chip");
+      const presenceChip = document.getElementById("presence-chip");
+      const logContainer = document.getElementById("terminal-log");
       const btnStart = document.getElementById("btn-start");
       const btnStop = document.getElementById("btn-stop");
-      const tempHistory = [];
-      const humiHistory = [];
+      const btnPresenceOn = document.getElementById("btn-presence-on");
+      const btnPresenceOff = document.getElementById("btn-presence-off");
+      const mainTemp = document.getElementById("main-temp");
+      const mainHumi = document.getElementById("main-humi");
+      const heatIndexEl = document.getElementById("heat-index");
+      const lastUpdate = document.getElementById("last-update");
+      const packetCount = document.getElementById("packet-count");
+      const runtimeText = document.getElementById("runtime-text");
+      const avgTempOccupied = document.getElementById("avg-temp-occupied");
+      const avgTempEmpty = document.getElementById("avg-temp-empty");
+      const occupiedSamples = document.getElementById("occupied-samples");
+      const emptySamples = document.getElementById("empty-samples");
+      const tempDelta = document.getElementById("temp-delta");
+
       const MAX_POINTS = 50;
+      const RUNTIME_START_KEY = "dht22_monitoring_runtime_start_ms";
+      const RUNTIME_ACTIVE_KEY = "dht22_monitoring_runtime_active";
       let packets = 0;
       let wsConnection = null;
-      let firstPacketReceived = false;
+      let currentPresence = "empty";
+      let runtimeIntervalId = null;
+      let runtimeStartMs = null;
+      const tempHistory = [];
+      const humiHistory = [];
+      const heatHistory = [];
+      const dewHistory = [];
 
-      // --- CHART SETUP (Sama seperti sebelumnya) ---
-      const commonOptions = {
-        /* ... tetap sama ... */
-      };
+      function formatRuntime(seconds) {
+        const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+        const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+        const s = String(seconds % 60).padStart(2, "0");
+        return `${h}:${m}:${s}`;
+      }
+
+      function readStoredRuntimeStart() {
+        try {
+          const active = localStorage.getItem(RUNTIME_ACTIVE_KEY) === "1";
+          const startRaw = localStorage.getItem(RUNTIME_START_KEY);
+          const start = Number(startRaw);
+          if (!active || !Number.isFinite(start) || start <= 0) return null;
+          return start;
+        } catch {
+          return null;
+        }
+      }
+
+      function storeRuntimeStart(startMs) {
+        try {
+          localStorage.setItem(RUNTIME_START_KEY, String(startMs));
+          localStorage.setItem(RUNTIME_ACTIVE_KEY, "1");
+        } catch {
+          // Ignore storage failures, runtime still works in-memory.
+        }
+      }
+
+      function clearStoredRuntime() {
+        try {
+          localStorage.removeItem(RUNTIME_START_KEY);
+          localStorage.setItem(RUNTIME_ACTIVE_KEY, "0");
+        } catch {
+          // Ignore storage failures.
+        }
+      }
+
+      function renderRuntime() {
+        const sec = runtimeStartMs
+          ? Math.max(0, Math.floor((Date.now() - runtimeStartMs) / 1000))
+          : 0;
+        runtimeText.textContent = `Runtime: ${formatRuntime(sec)}`;
+      }
+
+      function startRuntimeTicker() {
+        if (!runtimeStartMs) {
+          runtimeStartMs = Date.now();
+          storeRuntimeStart(runtimeStartMs);
+        }
+        if (runtimeIntervalId) return;
+        renderRuntime();
+        runtimeIntervalId = setInterval(() => {
+          renderRuntime();
+        }, 250);
+      }
+
+      function stopAndResetRuntime() {
+        if (runtimeIntervalId) {
+          clearInterval(runtimeIntervalId);
+          runtimeIntervalId = null;
+        }
+        runtimeStartMs = null;
+        clearStoredRuntime();
+        renderRuntime();
+      }
+
+      function chartOptions() {
+        return {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            x: {
+              ticks: { color: "#64748b", maxTicksLimit: 8 },
+              grid: { color: "rgba(100, 116, 139, 0.15)" },
+            },
+            y: {
+              ticks: { color: "#64748b" },
+              grid: { color: "rgba(100, 116, 139, 0.15)" },
+            },
+          },
+        };
+      }
+
       const tempChart = new Chart(document.getElementById("tempChart"), {
         type: "line",
         data: {
           labels: [],
-          datasets: [
-            {
-              data: [],
-              borderColor: "#e76f51",
-              backgroundColor: "rgba(231, 111, 81, 0.14)",
-              fill: true,
-              borderWidth: 2.6,
-              tension: 0.38,
-            },
-          ],
+          datasets: [{ data: [], borderColor: "#ea580c", backgroundColor: "rgba(234, 88, 12, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
         },
-        options: commonOptions,
+        options: chartOptions(),
       });
+
       const humiChart = new Chart(document.getElementById("humiChart"), {
         type: "line",
         data: {
           labels: [],
-          datasets: [
-            {
-              data: [],
-              borderColor: "#2a9d8f",
-              backgroundColor: "rgba(42, 157, 143, 0.14)",
-              fill: true,
-              borderWidth: 2.6,
-              tension: 0.38,
-            },
-          ],
+          datasets: [{ data: [], borderColor: "#0d9488", backgroundColor: "rgba(13, 148, 136, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
         },
-        options: commonOptions,
+        options: chartOptions(),
       });
-      const processChart = new Chart(document.getElementById("processChart"), {
+
+      const heatChart = new Chart(document.getElementById("heatChart"), {
         type: "line",
         data: {
           labels: [],
-          datasets: [
-            { label: "Raw", data: [] },
-            { label: "Processed", data: [] },
-          ],
+          datasets: [{ data: [], borderColor: "#dc2626", backgroundColor: "rgba(220, 38, 38, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
         },
-        options: commonOptions,
+        options: chartOptions(),
       });
 
-      // --- LOGIC FUNCTIONS ---
-      function pushSystemLog(msg, level = "SYSTEM") {
-        const line = document.createElement("p");
-        line.innerHTML = `[${new Date().toLocaleTimeString()}] [${level}] ${msg}`;
-        logContainer.appendChild(line);
-        if (logContainer.children.length > 25)
+      const dewChart = new Chart(document.getElementById("dewChart"), {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [{ data: [], borderColor: "#2563eb", backgroundColor: "rgba(37, 99, 235, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
+        },
+        options: chartOptions(),
+      });
+
+      const scatterChart = new Chart(document.getElementById("scatterChart"), {
+        type: "scatter",
+        data: {
+          datasets: [
+            {
+              data: [],
+              backgroundColor: "rgba(124, 58, 237, 0.6)",
+              borderColor: "rgba(124, 58, 237, 1)",
+              pointRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+          },
+          scales: {
+            x: {
+              title: { display: true, text: "Temperature (C)", color: "#64748b" },
+              ticks: { color: "#64748b" },
+              grid: { color: "rgba(100, 116, 139, 0.15)" },
+            },
+            y: {
+              title: { display: true, text: "Humidity (%)", color: "#64748b" },
+              ticks: { color: "#64748b" },
+              grid: { color: "rgba(100, 116, 139, 0.15)" },
+            },
+          },
+        },
+      });
+
+      const presenceCompareChart = new Chart(
+        document.getElementById("presenceCompareChart"),
+        {
+          type: "bar",
+          data: {
+            labels: ["Occupied", "Empty"],
+            datasets: [
+              {
+                data: [0, 0],
+                backgroundColor: [
+                  "rgba(192, 38, 211, 0.55)",
+                  "rgba(8, 145, 178, 0.55)",
+                ],
+                borderColor: ["rgba(192, 38, 211, 1)", "rgba(8, 145, 178, 1)"],
+                borderWidth: 1.2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                ticks: { color: "#64748b" },
+                grid: { color: "rgba(100, 116, 139, 0.15)" },
+                title: { display: true, text: "Temperature (C)", color: "#64748b" },
+              },
+              x: {
+                ticks: { color: "#64748b" },
+                grid: { color: "rgba(100, 116, 139, 0.06)" },
+              },
+            },
+          },
+        },
+      );
+
+      function pushSystemLog(message, level = "SYSTEM") {
+        const row = document.createElement("p");
+        row.textContent = `[${new Date().toLocaleTimeString("en-GB")}] [${level}] ${message}`;
+        logContainer.appendChild(row);
+        if (logContainer.children.length > 45) {
           logContainer.removeChild(logContainer.firstElementChild);
+        }
         logContainer.scrollTop = logContainer.scrollHeight;
       }
 
-      function setMonitoringState(enabled) {
-        const isEnabled = Boolean(enabled);
-        monitorChip.innerHTML = `<span></span> Monitoring: ${isEnabled ? "ON" : "OFF"}`;
-        monitorChip.style.background = isEnabled
-          ? "rgba(43, 147, 72, 0.12)"
-          : "rgba(193, 18, 31, 0.12)";
-        monitorChip.style.color = isEnabled ? "#216838" : "#991b1b";
-        btnStart.disabled = isEnabled;
-        btnStop.disabled = !isEnabled;
+      function setChip(el, text, tone) {
+        const styles = {
+          ok: "border-emerald-300 bg-emerald-50 text-emerald-700",
+          warn: "border-amber-300 bg-amber-50 text-amber-700",
+          bad: "border-rose-300 bg-rose-50 text-rose-700",
+          neutral: "border-slate-300 bg-slate-100 text-slate-700",
+        };
+        el.className = `inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${styles[tone] || styles.neutral}`;
+        el.innerHTML = `<span class=\"h-2 w-2 rounded-full bg-current\"></span>${text}`;
       }
 
-      async function controlMonitoring(action) {
-        try {
-          const res = await fetch(`/api/control/${action}`, { method: "POST" });
-          const json = await res.json();
-          setMonitoringState(json.monitoringEnabled);
-        } catch (e) {
-          pushSystemLog("Gagal kontrol monitoring", "ERROR");
+      function setMonitoringState(enabled) {
+        const on = Boolean(enabled);
+        setChip(monitorChip, `Monitoring: ${on ? "ON" : "OFF"}`, on ? "ok" : "bad");
+        btnStart.disabled = on;
+        btnStop.disabled = !on;
+
+        if (on) {
+          startRuntimeTicker();
+        } else {
+          stopAndResetRuntime();
         }
       }
 
-      function clamp(value, min, max) {
-        return Math.min(Math.max(Number(value), min), max);
+      function setEspStatus(status) {
+        if (status === "online") setChip(espChip, "ESP: Online", "ok");
+        else if (status === "offline") setChip(espChip, "ESP: Offline", "bad");
+        else setChip(espChip, "ESP: Searching", "warn");
       }
 
-      function preprocessData(rawTemp, rawHumi) {
-        const temp = clamp(rawTemp, -20, 80);
-        const humi = clamp(rawHumi, 0, 100);
-
-        tempHistory.push(temp);
-        humiHistory.push(humi);
-
-        if (tempHistory.length > MAX_POINTS) tempHistory.shift();
-        if (humiHistory.length > MAX_POINTS) humiHistory.shift();
-
-        return {
-          rawTemp: temp,
-          rawHumi: humi,
-          cleanTemp: Number(temp.toFixed(1)),
-          cleanHumi: Math.round(humi),
-        };
+      function setWsStatus(connected) {
+        setChip(wsChip, `Dashboard: ${connected ? "Connected" : "Disconnected"}`, connected ? "ok" : "bad");
       }
 
-      function pushChart(chart, label, value) {
+      function setPresenceStatus(status) {
+        currentPresence = status === "occupied" ? "occupied" : "empty";
+        if (currentPresence === "occupied") {
+          setChip(presenceChip, "Presence: Occupied", "ok");
+        } else {
+          setChip(presenceChip, "Presence: Empty", "neutral");
+        }
+        btnPresenceOn.disabled = currentPresence === "occupied";
+        btnPresenceOff.disabled = currentPresence === "empty";
+      }
+
+      function calcHeatIndex(tempC, humi) {
+        const tF = tempC * 1.8 + 32;
+        const hiF =
+          -42.379 +
+          2.04901523 * tF +
+          10.14333127 * humi -
+          0.22475541 * tF * humi -
+          0.00683783 * tF * tF -
+          0.05481717 * humi * humi +
+          0.00122874 * tF * tF * humi +
+          0.00085282 * tF * humi * humi -
+          0.00000199 * tF * tF * humi * humi;
+        return (hiF - 32) / 1.8;
+      }
+
+      function calcDewPoint(tempC, humi) {
+        const a = 17.27;
+        const b = 237.7;
+        const alpha = (a * tempC) / (b + tempC) + Math.log(humi / 100);
+        return (b * alpha) / (a - alpha);
+      }
+
+      function pushSeries(chart, label, value) {
         chart.data.labels.push(label);
         chart.data.datasets[0].data.push(value);
         if (chart.data.labels.length > MAX_POINTS) {
@@ -1043,108 +480,206 @@
         chart.update();
       }
 
-      function updateUI(processed) {
-        const now = new Date();
-        const timeLabel = now.toLocaleTimeString("id-ID", { hour12: false });
+      function handleData(rawTemp, rawHumi) {
+        const temp = Number(rawTemp);
+        const humi = Number(rawHumi);
+        if (!Number.isFinite(temp) || !Number.isFinite(humi)) return;
 
-        document.getElementById("main-temp").textContent =
-          processed.cleanTemp.toFixed(1);
-        document.getElementById("main-humi").textContent = processed.cleanHumi;
-        document.getElementById("raw-temp").textContent =
-          `${processed.rawTemp.toFixed(1)} C`;
-        document.getElementById("raw-humi").textContent =
-          `${Math.round(processed.rawHumi)} %`;
-        document.getElementById("clean-temp").textContent =
-          `${processed.cleanTemp.toFixed(1)} C`;
-        document.getElementById("clean-humi").textContent =
-          `${processed.cleanHumi} %`;
-        document.getElementById("last-update").textContent =
-          `Last update: ${timeLabel}`;
-        document.getElementById("feat-dew").textContent = `${(
-          processed.cleanTemp -
-          (100 - processed.cleanHumi) / 5
-        ).toFixed(1)} C`;
-        document.getElementById("feat-risk").textContent = `${Math.round(
-          clamp(
-            (processed.cleanTemp - 27) * 7 + (processed.cleanHumi - 60) * 1.5,
-            0,
-            100,
-          ),
-        )}/100`;
+        packets += 1;
+        const label = new Date().toLocaleTimeString("en-GB", { hour12: false });
+        const heatIndex = calcHeatIndex(temp, humi);
+        const dewPoint = calcDewPoint(temp, humi);
 
-        pushChart(tempChart, timeLabel, processed.cleanTemp);
-        pushChart(humiChart, timeLabel, processed.cleanHumi);
+        mainTemp.textContent = `${temp.toFixed(1)} C`;
+        mainHumi.textContent = `${humi.toFixed(0)} %`;
+        heatIndexEl.textContent = `${heatIndex.toFixed(1)} C`;
+        lastUpdate.textContent = `Last update: ${label}`;
+        packetCount.textContent = `Packets: ${packets}`;
 
-        processChart.data.labels.push(timeLabel);
-        processChart.data.datasets[0].data.push(processed.rawTemp);
-        processChart.data.datasets[1].data.push(processed.cleanTemp);
-        if (processChart.data.labels.length > MAX_POINTS) {
-          processChart.data.labels.shift();
-          processChart.data.datasets[0].data.shift();
-          processChart.data.datasets[1].data.shift();
+        tempHistory.push(temp);
+        humiHistory.push(humi);
+        heatHistory.push(heatIndex);
+        dewHistory.push(dewPoint);
+        if (tempHistory.length > MAX_POINTS) tempHistory.shift();
+        if (humiHistory.length > MAX_POINTS) humiHistory.shift();
+        if (heatHistory.length > MAX_POINTS) heatHistory.shift();
+        if (dewHistory.length > MAX_POINTS) dewHistory.shift();
+
+        pushSeries(tempChart, label, temp);
+        pushSeries(humiChart, label, humi);
+        pushSeries(heatChart, label, heatIndex);
+        pushSeries(dewChart, label, dewPoint);
+
+        scatterChart.data.datasets[0].data.push({ x: temp, y: humi });
+        if (scatterChart.data.datasets[0].data.length > MAX_POINTS) {
+          scatterChart.data.datasets[0].data.shift();
         }
-        processChart.update();
+        scatterChart.update();
+
+        refreshPresenceImpact();
       }
 
-      function handleData(rawTemp, rawHumi) {
-        firstPacketReceived = true;
-        packets++;
-        document.getElementById("packet-count").innerText =
-          `Packets: ${packets}`;
+      function formatTemp(value) {
+        return Number.isFinite(value) ? `${value.toFixed(2)} C` : "--";
+      }
 
-        // Gunakan fungsi preprocessData bawaan kamu
-        const processed = preprocessData(rawTemp, rawHumi);
-        updateUI(processed);
+      async function refreshPresenceImpact() {
+        try {
+          const res = await fetch(apiUrl("/api/analysis/presence-impact?limit=4000"));
+          const data = await res.json();
+          const occTemp = data?.averages?.occupied?.temp;
+          const emptyTemp = data?.averages?.empty?.temp;
+          const delta = data?.deltas?.temp;
+          const occCount = data?.samples?.occupied ?? 0;
+          const emptyCount = data?.samples?.empty ?? 0;
+
+          avgTempOccupied.textContent = formatTemp(occTemp);
+          avgTempEmpty.textContent = formatTemp(emptyTemp);
+          occupiedSamples.textContent = `Samples: ${occCount}`;
+          emptySamples.textContent = `Samples: ${emptyCount}`;
+          tempDelta.textContent = Number.isFinite(delta) ? `${delta.toFixed(2)} C` : "--";
+
+          presenceCompareChart.data.datasets[0].data = [
+            Number.isFinite(occTemp) ? occTemp : 0,
+            Number.isFinite(emptyTemp) ? emptyTemp : 0,
+          ];
+          presenceCompareChart.update();
+        } catch (error) {
+          pushSystemLog("Failed to refresh presence impact analytics", "WARN");
+        }
+      }
+
+      async function markPresence(status) {
+        try {
+          const res = await fetch(apiUrl("/api/presence/status"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            pushSystemLog(data.error || "Failed to mark presence", "ERROR");
+            return;
+          }
+          setPresenceStatus(data.status);
+          pushSystemLog(`Presence marked as ${data.status.toUpperCase()}`, "INFO");
+          refreshPresenceImpact();
+        } catch (error) {
+          pushSystemLog("Presence request failed", "ERROR");
+        }
+      }
+
+      async function controlMonitoring(action) {
+        try {
+          const res = await fetch(apiUrl(`/api/control/${action}`), { method: "POST" });
+          const json = await res.json();
+          setMonitoringState(json.monitoringEnabled);
+          pushSystemLog(`${action.toUpperCase()} command sent to ESP32`, "INFO");
+        } catch (error) {
+          pushSystemLog("Failed to control monitoring", "ERROR");
+        }
       }
 
       function connectWS() {
         wsConnection = new WebSocket(WS_URL);
+
         wsConnection.onopen = () => {
-          wsChip.innerHTML = "<span></span> Node ESP32 Online";
-          wsChip.style.background = "rgba(43, 147, 72, 0.1)";
-          pushSystemLog("Connected to WSS Server");
+          setWsStatus(true);
+          setEspStatus("searching");
+          pushSystemLog(`WebSocket connected to ${WS_URL}`, "INFO");
         };
-        wsConnection.onmessage = (e) => {
-          const data = JSON.parse(e.data);
+
+        wsConnection.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+
+          if (data.type === "esp_ack") {
+            const cmd = data.cmd ? data.cmd.toUpperCase() : "CMD";
+            pushSystemLog(`ESP ACK received for ${cmd}`, "INFO");
+            return;
+          }
+
+          if (data.type === "esp_status") {
+            if (data.status === "connected" || data.status === "online") {
+              setEspStatus("online");
+              pushSystemLog("ESP32 is online", "INFO");
+            } else if (data.status === "offline") {
+              setEspStatus("offline");
+              pushSystemLog("ESP32 is offline", "WARN");
+            }
+            return;
+          }
+
+          if (data.type === "app_status") {
+            pushSystemLog(data.message, "INFO");
+            return;
+          }
+
           if (data.type === "monitoring") {
             setMonitoringState(data.enabled);
-          } else {
-            const temp = Number(data.temp);
-            const humi = Number(data.humi);
-            if (Number.isFinite(temp) && Number.isFinite(humi)) {
-              handleData(temp, humi);
+            if (data.espOnline !== undefined) {
+              setEspStatus(data.espOnline ? "online" : "offline");
             }
+            if (data.presenceStatus) {
+              setPresenceStatus(data.presenceStatus);
+            }
+            return;
           }
+
+          if (data.type === "presence_status") {
+            setPresenceStatus(data.status);
+            pushSystemLog(`Presence updated to ${String(data.status).toUpperCase()}`, "INFO");
+            refreshPresenceImpact();
+            return;
+          }
+
+          handleData(data.temp, data.humi);
         };
+
         wsConnection.onclose = () => {
-          wsChip.innerHTML = "<span></span> WS Offline";
-          wsChip.style.background = "rgba(193, 18, 31, 0.1)";
+          setWsStatus(false);
+          setEspStatus("searching");
+          pushSystemLog("WebSocket disconnected, retrying in 2s", "WARN");
           setTimeout(connectWS, 2000);
+        };
+
+        wsConnection.onerror = () => {
+          pushSystemLog("WebSocket error", "ERROR");
         };
       }
 
-      // --- INIT ---
-      document.getElementById("btn-start").onclick = () =>
-        controlMonitoring("start");
-      document.getElementById("btn-stop").onclick = () =>
-        controlMonitoring("stop");
-      document.getElementById("btn-download").onclick = () =>
-        (window.location.href = "/download");
+      document.getElementById("btn-start").onclick = () => controlMonitoring("start");
+      document.getElementById("btn-stop").onclick = () => controlMonitoring("stop");
+      document.getElementById("btn-presence-on").onclick = () => markPresence("occupied");
+      document.getElementById("btn-presence-off").onclick = () => markPresence("empty");
+      document.getElementById("btn-download-presence").onclick = () => {
+        window.location.href = apiUrl("/download/presence-analysis");
+      };
       document.getElementById("btn-clear").onclick = async () => {
-        if (confirm("Hapus semua data?")) {
-          await fetch("/api/db/clear", { method: "POST" });
+        if (confirm("Delete all data?")) {
+          await fetch(apiUrl("/api/db/clear"), { method: "POST" });
           location.reload();
         }
       };
 
       async function init() {
-        const res = await fetch("/api/control/status");
-        const json = await res.json();
-        setMonitoringState(json.monitoringEnabled);
+        runtimeStartMs = readStoredRuntimeStart();
+        renderRuntime();
+        try {
+          const statusRes = await fetch(apiUrl("/api/control/status"));
+          const status = await statusRes.json();
+          setMonitoringState(status.monitoringEnabled);
+          setEspStatus(status.espOnline ? "online" : "offline");
+          setPresenceStatus(status.presenceStatus || "empty");
 
-        const resHist = await fetch("/api/history");
-        const history = await resHist.json();
-        history.forEach((d) => handleData(d.temp, d.humi));
+          const historyRes = await fetch(apiUrl("/api/history"));
+          const history = await historyRes.json();
+          history.forEach((row) => handleData(row.temp, row.humi));
+          await refreshPresenceImpact();
+
+          pushSystemLog(`Dashboard initialized in ${isProduction ? "Production" : "Local"} mode`, "INFO");
+        } catch (error) {
+          pushSystemLog("Failed to load initial data", "ERROR");
+        }
 
         connectWS();
       }
