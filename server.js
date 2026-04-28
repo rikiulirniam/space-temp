@@ -144,12 +144,23 @@ const handleEspPayload = (d) => {
       db.run(
         "INSERT INTO sensor_data (suhu,kelembapan,presence_status) VALUES (?,?,?)",
         [t, h, presenceStatus || "empty"],
+        function (insertErr) {
+          if (insertErr) return;
+          // Ambil waktu dari row yang baru saja diinsert
+          db.get(
+            "SELECT waktu FROM sensor_data WHERE id = ?",
+            [this.lastID],
+            (selErr, row) => {
+              broadcast({
+                temp: t,
+                humi: h,
+                presenceStatus: presenceStatus || "empty",
+                waktu: row ? row.waktu : null,
+              });
+            },
+          );
+        },
       );
-      broadcast({
-        temp: t,
-        humi: h,
-        presenceStatus: presenceStatus || "empty",
-      });
     });
   });
 };

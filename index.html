@@ -480,13 +480,25 @@
         chart.update();
       }
 
-      function handleData(rawTemp, rawHumi) {
+      /**
+       * Mengubah string waktu dari DB (format: "YYYY-MM-DD HH:MM:SS")
+       * menjadi label waktu pendek "HH:MM:SS".
+       */
+      function formatDataTime(waktuStr) {
+        if (!waktuStr) return "--:--:--";
+        // waktu dari SQLite: "2024-01-01 12:34:56"
+        const parts = String(waktuStr).split(" ");
+        return parts.length >= 2 ? parts[1] : waktuStr;
+      }
+
+      function handleData(rawTemp, rawHumi, rawWaktu) {
         const temp = Number(rawTemp);
         const humi = Number(rawHumi);
         if (!Number.isFinite(temp) || !Number.isFinite(humi)) return;
 
         packets += 1;
-        const label = new Date().toLocaleTimeString("en-GB", { hour12: false });
+        // Gunakan waktu dari data, BUKAN waktu device
+        const label = formatDataTime(rawWaktu);
         const heatIndex = calcHeatIndex(temp, humi);
         const dewPoint = calcDewPoint(temp, humi);
 
@@ -632,7 +644,7 @@
             return;
           }
 
-          handleData(data.temp, data.humi);
+          handleData(data.temp, data.humi, data.waktu);
         };
 
         wsConnection.onclose = () => {
@@ -673,7 +685,7 @@
 
           const historyRes = await fetch(apiUrl("/api/history"));
           const history = await historyRes.json();
-          history.forEach((row) => handleData(row.temp, row.humi));
+          history.forEach((row) => handleData(row.temp, row.humi, row.time));
           await refreshPresenceImpact();
 
           pushSystemLog(`Dashboard initialized in ${isProduction ? "Production" : "Local"} mode`, "INFO");
