@@ -1,3 +1,6 @@
+// ─── TIMEZONE: Paksa WIB (UTC+7) sebelum modul apapun diload ────────────────
+process.env.TZ = "Asia/Jakarta";
+
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
@@ -7,6 +10,19 @@ const sqlite3 = require("sqlite3").verbose();
 const PORT = 8080;
 const INDEX_FILE = path.join(__dirname, "index.html");
 const DB_FILE = path.join(__dirname, "monitoring.db");
+
+/**
+ * Mengembalikan waktu sekarang dalam format SQLite "YYYY-MM-DD HH:MM:SS"
+ * menggunakan timezone Asia/Jakarta (WIB, UTC+7) yang sudah diset via TZ.
+ */
+function wibNow() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+  );
+}
 
 // ─── DATABASE ────────────────────────────────────────────────────────────────
 const db = new sqlite3.Database(DB_FILE, (err) => {
@@ -142,8 +158,8 @@ const handleEspPayload = (d) => {
     getCurrentPresence((presenceErr, presenceStatus) => {
       if (presenceErr) return;
       db.run(
-        "INSERT INTO sensor_data (suhu,kelembapan,presence_status) VALUES (?,?,?)",
-        [t, h, presenceStatus || "empty"],
+        "INSERT INTO sensor_data (waktu,suhu,kelembapan,presence_status) VALUES (?,?,?,?)",
+        [wibNow(), t, h, presenceStatus || "empty"],
         function (insertErr) {
           if (insertErr) return;
           // Ambil waktu dari row yang baru saja diinsert
