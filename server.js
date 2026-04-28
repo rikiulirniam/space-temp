@@ -228,8 +228,8 @@ const getPresenceImpact = (sampleLimit, cb) => {
       ) AS presence_status
     FROM sensor_data s
     ORDER BY s.id DESC
-    LIMIT ?`,
-    [sampleLimit],
+    ${sampleLimit > 0 ? 'LIMIT ' + sampleLimit : ''}`,
+    [],
     (err, rows) => {
       if (err) return cb(err);
 
@@ -352,12 +352,22 @@ const server = http.createServer((req, res) => {
   }
 
   if (method === "GET" && pathname === "/api/analysis/presence-impact") {
-    const sampleLimit = Math.max(
-      1,
-      Math.min(20000, Number(reqUrl.searchParams.get("limit")) || 2000),
-    );
-    return getPresenceImpact(sampleLimit, (err, result) =>
+    // 0 = semua data tanpa limit
+    return getPresenceImpact(0, (err, result) =>
       sendJson(res, err ? 500 : 200, err ? { error: err.message } : result),
+    );
+  }
+
+  // Total count untuk card Packets
+  if (method === "GET" && pathname === "/api/stats") {
+    return db.get(
+      "SELECT COUNT(*) as totalCount FROM sensor_data",
+      (err, row) =>
+        sendJson(
+          res,
+          err ? 500 : 200,
+          err ? { error: err.message } : { totalCount: row ? row.totalCount : 0 },
+        ),
     );
   }
 

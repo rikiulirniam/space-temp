@@ -185,7 +185,7 @@
       const emptySamples = document.getElementById("empty-samples");
       const tempDelta = document.getElementById("temp-delta");
 
-      const MAX_POINTS = 50;
+      const MAX_POINTS = 100;
       const RUNTIME_START_KEY = "dht22_monitoring_runtime_start_ms";
       const RUNTIME_ACTIVE_KEY = "dht22_monitoring_runtime_active";
       let packets = 0;
@@ -537,7 +537,8 @@
 
       async function refreshPresenceImpact() {
         try {
-          const res = await fetch(apiUrl("/api/analysis/presence-impact?limit=4000"));
+          // Ambil SEMUA data tanpa limit untuk avg & delta yang akurat
+          const res = await fetch(apiUrl("/api/analysis/presence-impact"));
           const data = await res.json();
           const occTemp = data?.averages?.occupied?.temp;
           const emptyTemp = data?.averages?.empty?.temp;
@@ -683,9 +684,19 @@
           setEspStatus(status.espOnline ? "online" : "offline");
           setPresenceStatus(status.presenceStatus || "empty");
 
-          const historyRes = await fetch(apiUrl("/api/history"));
+          // Ambil 100 data terakhir untuk chart
+          const historyRes = await fetch(apiUrl("/api/history?limit=100"));
           const history = await historyRes.json();
           history.forEach((row) => handleData(row.temp, row.humi, row.time));
+
+          // Init packets dari total count di DB (bukan hanya 100 yang dimuat)
+          try {
+            const statsRes = await fetch(apiUrl("/api/stats"));
+            const stats = await statsRes.json();
+            packets = stats.totalCount || packets;
+            packetCount.textContent = `Packets: ${packets}`;
+          } catch (_) { /* non-critical */ }
+
           await refreshPresenceImpact();
 
           pushSystemLog(`Dashboard initialized in ${isProduction ? "Production" : "Local"} mode`, "INFO");
