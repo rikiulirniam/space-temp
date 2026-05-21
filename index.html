@@ -18,147 +18,354 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
-  <body class="min-h-screen bg-gradient-to-br from-amber-50 via-stone-100 to-emerald-50 text-slate-800">
+  <body
+    class="min-h-screen bg-gradient-to-br from-amber-50 via-stone-100 to-emerald-50 text-slate-800"
+  >
     <main class="mx-auto w-[92%] max-w-7xl py-6">
-      <section class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-lg backdrop-blur">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section
+        class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-lg backdrop-blur"
+      >
+        <div
+          class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+        >
           <div>
-            <h1 class="text-2xl font-extrabold tracking-tight">DHT22 Monitoring Dashboard</h1>
-            <p class="mt-1 text-sm text-slate-500">ESP32 telemetry with local/production auto routing</p>
-            <p id="runtime-text" class="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Runtime: 00:00:00</p>
+            <h1 class="text-2xl font-extrabold tracking-tight">
+              DHT22 Monitoring Dashboard
+            </h1>
+            <p class="mt-1 text-sm text-slate-500">
+              ESP32 telemetry with local/production auto routing
+            </p>
+            <p
+              id="runtime-text"
+              class="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400"
+            >
+              Runtime: 00:00:00
+            </p>
           </div>
 
           <div class="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
             <div class="flex flex-wrap gap-2">
-              <div id="ws-chip" class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider">
+              <div
+                id="ws-chip"
+                class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider"
+              >
                 <span class="h-2 w-2 rounded-full bg-slate-500"></span>
                 Dashboard: Connecting
               </div>
-              <div id="monitor-chip" class="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-700">
+              <div
+                id="monitor-chip"
+                class="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-700"
+              >
                 <span class="h-2 w-2 rounded-full bg-rose-600"></span>
                 Monitoring: OFF
               </div>
-              <div id="esp-chip" class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+              <div
+                id="esp-chip"
+                class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700"
+              >
                 <span class="h-2 w-2 rounded-full bg-amber-600"></span>
                 ESP: Searching
               </div>
-              <div id="presence-chip" class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+              <div
+                id="presence-chip"
+                class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-700"
+              >
                 <span class="h-2 w-2 rounded-full bg-slate-600"></span>
                 Presence: Empty
               </div>
             </div>
 
             <div class="flex flex-wrap gap-2">
-              <button id="btn-start" class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-emerald-700 transition hover:-translate-y-0.5">Start</button>
-              <button id="btn-stop" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-700 transition hover:-translate-y-0.5">Stop</button>
-              <button id="btn-presence-on" class="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-fuchsia-700 transition hover:-translate-y-0.5">Mark Occupied</button>
-              <button id="btn-presence-off" class="rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-cyan-700 transition hover:-translate-y-0.5">Mark Empty</button>
-              <button id="btn-download-presence" class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-violet-700 transition hover:-translate-y-0.5">Export CSV</button>
-              <button id="btn-clear" class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-rose-700 transition hover:-translate-y-0.5">Delete DB</button>
+              <button
+                id="btn-start"
+                class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-emerald-700 transition hover:-translate-y-0.5"
+              >
+                Start
+              </button>
+              <button
+                id="btn-stop"
+                class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-700 transition hover:-translate-y-0.5"
+              >
+                Stop
+              </button>
+              <button
+                id="btn-presence-on"
+                class="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-fuchsia-700 transition hover:-translate-y-0.5"
+              >
+                Mark Occupied
+              </button>
+              <button
+                id="btn-presence-off"
+                class="rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-cyan-700 transition hover:-translate-y-0.5"
+              >
+                Mark Empty
+              </button>
+              <button
+                id="btn-download-presence"
+                class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-violet-700 transition hover:-translate-y-0.5"
+              >
+                Export CSV
+              </button>
+              <button
+                id="btn-clear"
+                class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-rose-700 transition hover:-translate-y-0.5"
+              >
+                Delete DB
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Temperature</p>
-          <p id="main-temp" class="mt-2 text-3xl font-extrabold text-orange-600">--</p>
-          <p id="last-update" class="mt-1 text-xs text-slate-500">Last update: --:--:--</p>
+      <section
+        class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      >
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
+          <p
+            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
+          >
+            Temperature
+          </p>
+          <p
+            id="main-temp"
+            class="mt-2 text-3xl font-extrabold text-orange-600"
+          >
+            --
+          </p>
+          <p id="last-update" class="mt-1 text-xs text-slate-500">
+            Last update: --:--:--
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Humidity</p>
-          <p id="main-humi" class="mt-2 text-3xl font-extrabold text-teal-600">--</p>
-          <p id="packet-count" class="mt-1 text-xs text-slate-500">Packets: 0</p>
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
+          <p
+            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
+          >
+            Humidity
+          </p>
+          <p id="main-humi" class="mt-2 text-3xl font-extrabold text-teal-600">
+            --
+          </p>
+          <p id="packet-count" class="mt-1 text-xs text-slate-500">
+            Packets: 0
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Heat Index</p>
-          <p id="heat-index" class="mt-2 text-3xl font-extrabold text-red-600">--</p>
-          <p class="mt-1 text-xs text-slate-500">Calculated from temperature and humidity</p>
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
+          <p
+            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
+          >
+            Heat Index
+          </p>
+          <p id="heat-index" class="mt-2 text-3xl font-extrabold text-red-600">
+            --
+          </p>
+          <p class="mt-1 text-xs text-slate-500">
+            Calculated from temperature and humidity
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avg Temp (Occupied)</p>
-          <p id="avg-temp-occupied" class="mt-2 text-3xl font-extrabold text-fuchsia-600">--</p>
-          <p id="occupied-samples" class="mt-1 text-xs text-slate-500">Samples: 0</p>
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
+          <p
+            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
+          >
+            Avg Temp (Occupied)
+          </p>
+          <p
+            id="avg-temp-occupied"
+            class="mt-2 text-3xl font-extrabold text-fuchsia-600"
+          >
+            --
+          </p>
+          <p id="occupied-samples" class="mt-1 text-xs text-slate-500">
+            Samples: 0
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Avg Temp (Empty)</p>
-          <p id="avg-temp-empty" class="mt-2 text-3xl font-extrabold text-cyan-600">--</p>
-          <p id="empty-samples" class="mt-1 text-xs text-slate-500">Samples: 0</p>
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
+          <p
+            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
+          >
+            Avg Temp (Empty)
+          </p>
+          <p
+            id="avg-temp-empty"
+            class="mt-2 text-3xl font-extrabold text-cyan-600"
+          >
+            --
+          </p>
+          <p id="empty-samples" class="mt-1 text-xs text-slate-500">
+            Samples: 0
+          </p>
         </article>
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Presence Delta</p>
-          <p id="temp-delta" class="mt-2 text-3xl font-extrabold text-violet-600">--</p>
-          <p class="mt-1 text-xs text-slate-500">Occupied minus Empty temperature</p>
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
+          <p
+            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
+          >
+            Presence Delta
+          </p>
+          <p
+            id="temp-delta"
+            class="mt-2 text-3xl font-extrabold text-violet-600"
+          >
+            --
+          </p>
+          <p class="mt-1 text-xs text-slate-500">
+            Occupied minus Empty temperature
+          </p>
         </article>
       </section>
 
       <section class="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
           <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Temperature Trend</h3>
-            <span class="text-[11px] font-semibold text-slate-400">Realtime</span>
+            <h3
+              class="text-sm font-bold uppercase tracking-wider text-slate-600"
+            >
+              Temperature Trend
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400"
+              >Realtime</span
+            >
           </div>
           <canvas id="tempChart" height="130"></canvas>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
           <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Humidity Trend</h3>
-            <span class="text-[11px] font-semibold text-slate-400">Realtime</span>
+            <h3
+              class="text-sm font-bold uppercase tracking-wider text-slate-600"
+            >
+              Humidity Trend
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400"
+              >Realtime</span
+            >
           </div>
           <canvas id="humiChart" height="130"></canvas>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
           <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Heat Index Trend</h3>
-            <span class="text-[11px] font-semibold text-slate-400">Derived Metric</span>
+            <h3
+              class="text-sm font-bold uppercase tracking-wider text-slate-600"
+            >
+              Heat Index Trend
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400"
+              >Derived Metric</span
+            >
           </div>
           <canvas id="heatChart" height="130"></canvas>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+        >
           <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Dew Point Trend</h3>
-            <span class="text-[11px] font-semibold text-slate-400">Derived Metric</span>
+            <h3
+              class="text-sm font-bold uppercase tracking-wider text-slate-600"
+            >
+              Dew Point Trend
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400"
+              >Derived Metric</span
+            >
           </div>
           <canvas id="dewChart" height="130"></canvas>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2">
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2"
+        >
           <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Temp vs Humidity Correlation</h3>
-            <span class="text-[11px] font-semibold text-slate-400">Scatter (Last 50 points)</span>
+            <h3
+              class="text-sm font-bold uppercase tracking-wider text-slate-600"
+            >
+              Temp vs Humidity Correlation
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400"
+              >Scatter (Last 50 points)</span
+            >
           </div>
           <canvas id="scatterChart" height="120"></canvas>
         </article>
 
-        <article class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2">
+        <article
+          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2"
+        >
           <div class="mb-2 flex items-center justify-between">
-            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Human Presence Impact (Avg Temperature)</h3>
-            <span class="text-[11px] font-semibold text-slate-400">Based on labeled occupancy</span>
+            <h3
+              class="text-sm font-bold uppercase tracking-wider text-slate-600"
+            >
+              Human Presence Impact (Avg Temperature)
+            </h3>
+            <span class="text-[11px] font-semibold text-slate-400"
+              >Based on labeled occupancy</span
+            >
           </div>
           <canvas id="presenceCompareChart" height="115"></canvas>
         </article>
       </section>
 
-      <section class="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+      <section
+        class="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
+      >
         <div class="mb-2 flex items-center justify-between">
-          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">Event Log</h3>
-          <span class="text-[11px] font-semibold text-slate-400">Server and ESP activity</span>
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">
+            Event Log
+          </h3>
+          <span class="text-[11px] font-semibold text-slate-400"
+            >Server and ESP activity</span
+          >
         </div>
-        <div id="terminal-log" class="max-h-64 min-h-40 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-3 font-mono text-xs text-emerald-200"></div>
+        <div
+          id="terminal-log"
+          class="max-h-64 min-h-40 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-3 font-mono text-xs text-emerald-200"
+        ></div>
       </section>
 
-      <p class="mt-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">ESP32 DHT22 Monitoring Stack</p>
+      <p
+        class="mt-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500"
+      >
+        ESP32 DHT22 Monitoring Stack
+      </p>
     </main>
 
     <script>
-      const PROD_HOST = "temp.dasihayu.my.id";
-      const isProduction = window.location.hostname === PROD_HOST;
-      const API_BASE = isProduction ? "" : "http://localhost:8080";
-      const WS_URL = isProduction ? `wss://${PROD_HOST}` : "ws://localhost:8080";
+      // const PROD_HOST = "spacetemp.rikiulir.my.id";
+      // const isProduction = window.location.hostname === PROD_HOST;
+      // const API_BASE = isProduction ? "" : "http://localhost:8080";
+      // const WS_URL = isProduction ? `wss://${PROD_HOST}` : "ws://localhost:8080";
+
+      // Jika dibuka lewat localhost, gunakan port :8080 bawaan development Express
+      const isLocalhost =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
+
+      // Jika di localhost gunakan http://localhost:8080, jika di cloud/tunnel ikuti domain yang aktif saat ini
+      const API_BASE = isLocalhost ? "http://localhost:8080" : "";
+
+      // Sesuaikan protokol WS (ws atau wss) secara otomatis mengikuti status SSL domain
+      const wsProtocol =
+        window.location.protocol === "https:" ? "wss://" : "ws://";
+      const WS_URL = isLocalhost
+        ? "ws://localhost:8080"
+        : `${wsProtocol}${window.location.host}`;
 
       function apiUrl(path) {
         return `${API_BASE}${path}`;
@@ -289,7 +496,16 @@
         type: "line",
         data: {
           labels: [],
-          datasets: [{ data: [], borderColor: "#ea580c", backgroundColor: "rgba(234, 88, 12, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
+          datasets: [
+            {
+              data: [],
+              borderColor: "#ea580c",
+              backgroundColor: "rgba(234, 88, 12, 0.15)",
+              fill: true,
+              tension: 0.3,
+              borderWidth: 2.4,
+            },
+          ],
         },
         options: chartOptions(),
       });
@@ -298,7 +514,16 @@
         type: "line",
         data: {
           labels: [],
-          datasets: [{ data: [], borderColor: "#0d9488", backgroundColor: "rgba(13, 148, 136, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
+          datasets: [
+            {
+              data: [],
+              borderColor: "#0d9488",
+              backgroundColor: "rgba(13, 148, 136, 0.15)",
+              fill: true,
+              tension: 0.3,
+              borderWidth: 2.4,
+            },
+          ],
         },
         options: chartOptions(),
       });
@@ -307,7 +532,16 @@
         type: "line",
         data: {
           labels: [],
-          datasets: [{ data: [], borderColor: "#dc2626", backgroundColor: "rgba(220, 38, 38, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
+          datasets: [
+            {
+              data: [],
+              borderColor: "#dc2626",
+              backgroundColor: "rgba(220, 38, 38, 0.15)",
+              fill: true,
+              tension: 0.3,
+              borderWidth: 2.4,
+            },
+          ],
         },
         options: chartOptions(),
       });
@@ -316,7 +550,16 @@
         type: "line",
         data: {
           labels: [],
-          datasets: [{ data: [], borderColor: "#2563eb", backgroundColor: "rgba(37, 99, 235, 0.15)", fill: true, tension: 0.3, borderWidth: 2.4 }],
+          datasets: [
+            {
+              data: [],
+              borderColor: "#2563eb",
+              backgroundColor: "rgba(37, 99, 235, 0.15)",
+              fill: true,
+              tension: 0.3,
+              borderWidth: 2.4,
+            },
+          ],
         },
         options: chartOptions(),
       });
@@ -342,7 +585,11 @@
           },
           scales: {
             x: {
-              title: { display: true, text: "Temperature (C)", color: "#64748b" },
+              title: {
+                display: true,
+                text: "Temperature (C)",
+                color: "#64748b",
+              },
               ticks: { color: "#64748b" },
               grid: { color: "rgba(100, 116, 139, 0.15)" },
             },
@@ -382,7 +629,11 @@
               y: {
                 ticks: { color: "#64748b" },
                 grid: { color: "rgba(100, 116, 139, 0.15)" },
-                title: { display: true, text: "Temperature (C)", color: "#64748b" },
+                title: {
+                  display: true,
+                  text: "Temperature (C)",
+                  color: "#64748b",
+                },
               },
               x: {
                 ticks: { color: "#64748b" },
@@ -416,7 +667,11 @@
 
       function setMonitoringState(enabled) {
         const on = Boolean(enabled);
-        setChip(monitorChip, `Monitoring: ${on ? "ON" : "OFF"}`, on ? "ok" : "bad");
+        setChip(
+          monitorChip,
+          `Monitoring: ${on ? "ON" : "OFF"}`,
+          on ? "ok" : "bad",
+        );
         btnStart.disabled = on;
         btnStop.disabled = !on;
 
@@ -434,7 +689,11 @@
       }
 
       function setWsStatus(connected) {
-        setChip(wsChip, `Dashboard: ${connected ? "Connected" : "Disconnected"}`, connected ? "ok" : "bad");
+        setChip(
+          wsChip,
+          `Dashboard: ${connected ? "Connected" : "Disconnected"}`,
+          connected ? "ok" : "bad",
+        );
       }
 
       function setPresenceStatus(status) {
@@ -550,7 +809,9 @@
           avgTempEmpty.textContent = formatTemp(emptyTemp);
           occupiedSamples.textContent = `Samples: ${occCount}`;
           emptySamples.textContent = `Samples: ${emptyCount}`;
-          tempDelta.textContent = Number.isFinite(delta) ? `${delta.toFixed(2)} C` : "--";
+          tempDelta.textContent = Number.isFinite(delta)
+            ? `${delta.toFixed(2)} C`
+            : "--";
 
           presenceCompareChart.data.datasets[0].data = [
             Number.isFinite(occTemp) ? occTemp : 0,
@@ -575,7 +836,10 @@
             return;
           }
           setPresenceStatus(data.status);
-          pushSystemLog(`Presence marked as ${data.status.toUpperCase()}`, "INFO");
+          pushSystemLog(
+            `Presence marked as ${data.status.toUpperCase()}`,
+            "INFO",
+          );
           refreshPresenceImpact();
         } catch (error) {
           pushSystemLog("Presence request failed", "ERROR");
@@ -584,10 +848,15 @@
 
       async function controlMonitoring(action) {
         try {
-          const res = await fetch(apiUrl(`/api/control/${action}`), { method: "POST" });
+          const res = await fetch(apiUrl(`/api/control/${action}`), {
+            method: "POST",
+          });
           const json = await res.json();
           setMonitoringState(json.monitoringEnabled);
-          pushSystemLog(`${action.toUpperCase()} command sent to ESP32`, "INFO");
+          pushSystemLog(
+            `${action.toUpperCase()} command sent to ESP32`,
+            "INFO",
+          );
         } catch (error) {
           pushSystemLog("Failed to control monitoring", "ERROR");
         }
@@ -640,7 +909,10 @@
 
           if (data.type === "presence_status") {
             setPresenceStatus(data.status);
-            pushSystemLog(`Presence updated to ${String(data.status).toUpperCase()}`, "INFO");
+            pushSystemLog(
+              `Presence updated to ${String(data.status).toUpperCase()}`,
+              "INFO",
+            );
             refreshPresenceImpact();
             return;
           }
@@ -660,10 +932,14 @@
         };
       }
 
-      document.getElementById("btn-start").onclick = () => controlMonitoring("start");
-      document.getElementById("btn-stop").onclick = () => controlMonitoring("stop");
-      document.getElementById("btn-presence-on").onclick = () => markPresence("occupied");
-      document.getElementById("btn-presence-off").onclick = () => markPresence("empty");
+      document.getElementById("btn-start").onclick = () =>
+        controlMonitoring("start");
+      document.getElementById("btn-stop").onclick = () =>
+        controlMonitoring("stop");
+      document.getElementById("btn-presence-on").onclick = () =>
+        markPresence("occupied");
+      document.getElementById("btn-presence-off").onclick = () =>
+        markPresence("empty");
       document.getElementById("btn-download-presence").onclick = () => {
         window.location.href = apiUrl("/download/presence-analysis");
       };
@@ -695,11 +971,16 @@
             const stats = await statsRes.json();
             packets = stats.totalCount || packets;
             packetCount.textContent = `Packets: ${packets}`;
-          } catch (_) { /* non-critical */ }
+          } catch (_) {
+            /* non-critical */
+          }
 
           await refreshPresenceImpact();
 
-          pushSystemLog(`Dashboard initialized in ${isProduction ? "Production" : "Local"} mode`, "INFO");
+          pushSystemLog(
+            `Dashboard initialized in ${isProduction ? "Production" : "Local"} mode`,
+            "INFO",
+          );
         } catch (error) {
           pushSystemLog("Failed to load initial data", "ERROR");
         }
