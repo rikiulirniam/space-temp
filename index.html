@@ -299,7 +299,7 @@
               Temp vs Humidity Correlation
             </h3>
             <span class="text-[11px] font-semibold text-slate-400"
-              >Scatter (Last 50 points)</span
+              >Scatter (Last 15 points)</span
             >
           </div>
           <canvas id="scatterChart" height="120"></canvas>
@@ -392,7 +392,7 @@
       const emptySamples = document.getElementById("empty-samples");
       const tempDelta = document.getElementById("temp-delta");
 
-      const MAX_POINTS = 100;
+      const MAX_POINTS = 20;
       const RUNTIME_START_KEY = "dht22_monitoring_runtime_start_ms";
       const RUNTIME_ACTIVE_KEY = "dht22_monitoring_runtime_active";
       let packets = 0;
@@ -960,8 +960,8 @@
           setEspStatus(status.espOnline ? "online" : "offline");
           setPresenceStatus(status.presenceStatus || "empty");
 
-          // Ambil 100 data terakhir untuk chart
-          const historyRes = await fetch(apiUrl("/api/history?limit=100"));
+          // Ambil 15 data terakhir untuk chart
+          const historyRes = await fetch(apiUrl("/api/history?limit=15"));
           const history = await historyRes.json();
           history.forEach((row) => handleData(row.temp, row.humi, row.time));
 
