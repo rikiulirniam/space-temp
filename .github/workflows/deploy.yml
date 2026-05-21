@@ -1,4 +1,4 @@
-name: Node.js CI/CD to Ubuntu Server
+name: Node.js CI/CD via Cloudflare Tunnel SSH
 
 on:
   push:
@@ -13,24 +13,35 @@ jobs:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
 
-      # Langkah baru: Install cloudflared di runner GitHub untuk menembus terowongan
-      - name: Install Cloudflare Client on Runner
+      # 1. Install cloudflared di runner GitHub untuk menembus terowongan Cloudflare
+      - name: Install Cloudflare Client
         run: |
           curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-      - name: Deploy to Ubuntu via Cloudflare Tunnel SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ssh-deploy.domainanda.com # Gunakan subdomain baru khusus SSH
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          port: 22
-          # Perintah sakti untuk membungkus koneksi SSH lewat Cloudflare Client:
-          proxy_command: cloudflared access ssh --hostname ssh-deploy.domainanda.com
-          script: |
+      # 2. Setup SSH Key dan konfigurasi ProxyCommand di dalam runner
+      - name: Setup SSH Configuration
+        run: |
+          mkdir -p ~/.ssh
+          # Masukkan private key dari github secrets ke file lokal runner
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          
+          # Daftarkan konfigurasi proxy sakti agar host khusus dikirim via cloudflared
+          cat <<EOF > ~/.ssh/config
+          Host ssh-deploy.domainanda.com
+              IdentityFile ~/.ssh/id_ed25519
+              ProxyCommand cloudflared access ssh --hostname %h
+              StrictHostKeyChecking no
+          EOF
+
+      # 3. Eksekusi perintah deployment menggunakan native SSH Linux
+      - name: Execute Remote Deployment Commands
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@ssh-deploy.domainanda.com << 'EOF'
             cd /var/www/html/tempdetection
             git pull origin main
             npm install --production
             chmod 664 monitoring.db
             pm2 restart temp-detection-api
+          EOF
