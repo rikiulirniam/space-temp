@@ -244,7 +244,7 @@ const getPresenceImpact = (sampleLimit, cb) => {
       ) AS presence_status
     FROM sensor_data s
     ORDER BY s.id DESC
-    ${sampleLimit > 0 ? 'LIMIT ' + sampleLimit : ''}`,
+    ${sampleLimit > 0 ? "LIMIT " + sampleLimit : ""}`,
     [],
     (err, rows) => {
       if (err) return cb(err);
@@ -382,7 +382,9 @@ const server = http.createServer((req, res) => {
         sendJson(
           res,
           err ? 500 : 200,
-          err ? { error: err.message } : { totalCount: row ? row.totalCount : 0 },
+          err
+            ? { error: err.message }
+            : { totalCount: row ? row.totalCount : 0 },
         ),
     );
   }
@@ -525,7 +527,7 @@ const heartbeatInterval = setInterval(() => {
     ws.isAlive = false;
     ws.ping();
   });
-}, 10000); // 10 seconds heartbeat
+}, 30000); // 30 seconds heartbeat
 
 wss.on("close", () => {
   clearInterval(heartbeatInterval);
@@ -533,6 +535,11 @@ wss.on("close", () => {
 
 wss.on("connection", (ws, req) => {
   ws.isAlive = true;
+
+  console.log(`✅ WS ESTABLISHED from ${req.socket.remoteAddress}`); // tambah ini
+  console.log(
+    `[WS] New connection from ${req.socket.remoteAddress}, url: ${req.url}`,
+  ); // tambah ini
   ws.on("pong", () => {
     ws.isAlive = true;
   });
@@ -620,7 +627,23 @@ wss.on("connection", (ws, req) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`🚀 Dashboard: http://localhost:${PORT}`);
-  console.log(`📡 Waiting for ESP32 connection...`);
+let currentPort = PORT;
+
+function startServer(port) {
+  currentPort = port;
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`🚀 Dashboard: http://localhost:${port}`);
+    console.log(`📡 Waiting for ESP32 connection...`);
+  });
+}
+
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.warn(`Port ${currentPort} already in use, trying ${currentPort + 1}...`);
+    setTimeout(() => startServer(currentPort + 1), 200);
+    return;
+  }
+  console.error("Server error:", err && err.message ? err.message : err);
 });
+
+startServer(PORT);
