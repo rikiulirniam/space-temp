@@ -29,7 +29,7 @@ jobs:
           
           # Daftarkan konfigurasi proxy sakti agar host khusus dikirim via cloudflared
           cat <<EOF > ~/.ssh/config
-          Host ssh-deploy.domainanda.com
+          Host ssh-deploy.rikiulir.site
               IdentityFile ~/.ssh/id_ed25519
               ProxyCommand cloudflared access ssh --hostname %h
               StrictHostKeyChecking no
@@ -38,7 +38,7 @@ jobs:
       # 3. Eksekusi perintah deployment menggunakan native SSH Linux
       - name: Execute Remote Deployment Commands
         run: |
-          ssh ${{ secrets.SERVER_USER }}@ssh-deploy.domainanda.com << 'EOF'
+          ssh ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
             cd /var/www/html/tempdetection
             git pull origin main
             npm install --production
