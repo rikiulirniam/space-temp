@@ -1,0 +1,37 @@
+name: Node.js CI/CD to Ubuntu Server
+
+on:
+  push:
+    branches:
+      - main # Jalankan deployment setiap kali push ke branch main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Ubuntu via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: 22
+          script: |
+            # 1. Masuk ke direktori project di server
+            cd /var/www/html/tempdetection
+            
+            # 2. Ambil kode terbaru dari GitHub (pastikan repositori di server sudah di-set git-nya)
+            git pull origin main
+            
+            # 3. Install dependency baru jika ada perubahan package.json
+            npm install --production
+            
+            # 4. Amankan ulang permission database SQLite jika ter-reset
+            chmod 664 monitoring.db
+            
+            # 5. Restart server Express lewat PM2 agar kode baru aktif di RAM
+            pm2 restart temp-detection-api
