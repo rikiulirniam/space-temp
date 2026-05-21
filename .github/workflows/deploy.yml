@@ -3,7 +3,7 @@ name: Node.js CI/CD to Ubuntu Server
 on:
   push:
     branches:
-      - main # Jalankan deployment setiap kali push ke branch main
+      - main
 
 jobs:
   deploy:
@@ -13,25 +13,24 @@ jobs:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
 
-      - name: Deploy to Ubuntu via SSH
+      # Langkah baru: Install cloudflared di runner GitHub untuk menembus terowongan
+      - name: Install Cloudflare Client on Runner
+        run: |
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
+      - name: Deploy to Ubuntu via Cloudflare Tunnel SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST }}
+          host: ssh-deploy.domainanda.com # Gunakan subdomain baru khusus SSH
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: 22
+          # Perintah sakti untuk membungkus koneksi SSH lewat Cloudflare Client:
+          proxy_command: cloudflared access ssh --hostname ssh-deploy.domainanda.com
           script: |
-            # 1. Masuk ke direktori project di server
             cd /var/www/html/tempdetection
-            
-            # 2. Ambil kode terbaru dari GitHub (pastikan repositori di server sudah di-set git-nya)
             git pull origin main
-            
-            # 3. Install dependency baru jika ada perubahan package.json
             npm install --production
-            
-            # 4. Amankan ulang permission database SQLite jika ter-reset
             chmod 664 monitoring.db
-            
-            # 5. Restart server Express lewat PM2 agar kode baru aktif di RAM
             pm2 restart temp-detection-api
