@@ -1,994 +1,432 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DHT22 Monitoring Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-            },
-          },
-        },
-      };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
-  <body
-    class="min-h-screen bg-gradient-to-br from-amber-50 via-stone-100 to-emerald-50 text-slate-800"
-  >
-    <main class="mx-auto w-[92%] max-w-7xl py-6">
-      <section
-        class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-lg backdrop-blur"
-      >
-        <div
-          class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
-        >
-          <div>
-            <h1 class="text-2xl font-extrabold tracking-tight">
-              DHT22 Monitoring Dashboard
-            </h1>
-            <p class="mt-1 text-sm text-slate-500">
-              ESP32 telemetry with local/production auto routing
-            </p>
-            <p
-              id="runtime-text"
-              class="mt-1 text-xs font-semibold uppercase tracking-wider text-slate-400"
-            >
-              Runtime: 00:00:00
-            </p>
-          </div>
-
-          <div class="flex w-full flex-col gap-3 lg:w-auto lg:items-end">
-            <div class="flex flex-wrap gap-2">
-              <div
-                id="ws-chip"
-                class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider"
-              >
-                <span class="h-2 w-2 rounded-full bg-slate-500"></span>
-                Dashboard: Connecting
-              </div>
-              <div
-                id="monitor-chip"
-                class="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-700"
-              >
-                <span class="h-2 w-2 rounded-full bg-rose-600"></span>
-                Monitoring: OFF
-              </div>
-              <div
-                id="esp-chip"
-                class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700"
-              >
-                <span class="h-2 w-2 rounded-full bg-amber-600"></span>
-                ESP: Searching
-              </div>
-              <div
-                id="presence-chip"
-                class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-700"
-              >
-                <span class="h-2 w-2 rounded-full bg-slate-600"></span>
-                Presence: Empty
-              </div>
-            </div>
-
-            <div class="flex flex-wrap gap-2">
-              <button
-                id="btn-start"
-                class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-emerald-700 transition hover:-translate-y-0.5"
-              >
-                Start
-              </button>
-              <button
-                id="btn-stop"
-                class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-700 transition hover:-translate-y-0.5"
-              >
-                Stop
-              </button>
-              <button
-                id="btn-presence-on"
-                class="rounded-lg border border-fuchsia-300 bg-fuchsia-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-fuchsia-700 transition hover:-translate-y-0.5"
-              >
-                Mark Occupied
-              </button>
-              <button
-                id="btn-presence-off"
-                class="rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-cyan-700 transition hover:-translate-y-0.5"
-              >
-                Mark Empty
-              </button>
-              <button
-                id="btn-download-presence"
-                class="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-violet-700 transition hover:-translate-y-0.5"
-              >
-                Export CSV
-              </button>
-              <button
-                id="btn-clear"
-                class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-rose-700 transition hover:-translate-y-0.5"
-              >
-                Delete DB
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section
-        class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
-      >
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <p
-            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
-          >
-            Temperature
-          </p>
-          <p
-            id="main-temp"
-            class="mt-2 text-3xl font-extrabold text-orange-600"
-          >
-            --
-          </p>
-          <p id="last-update" class="mt-1 text-xs text-slate-500">
-            Last update: --:--:--
-          </p>
-        </article>
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <p
-            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
-          >
-            Humidity
-          </p>
-          <p id="main-humi" class="mt-2 text-3xl font-extrabold text-teal-600">
-            --
-          </p>
-          <p id="packet-count" class="mt-1 text-xs text-slate-500">
-            Packets: 0
-          </p>
-        </article>
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <p
-            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
-          >
-            Heat Index
-          </p>
-          <p id="heat-index" class="mt-2 text-3xl font-extrabold text-red-600">
-            --
-          </p>
-          <p class="mt-1 text-xs text-slate-500">
-            Calculated from temperature and humidity
-          </p>
-        </article>
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <p
-            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
-          >
-            Avg Temp (Occupied)
-          </p>
-          <p
-            id="avg-temp-occupied"
-            class="mt-2 text-3xl font-extrabold text-fuchsia-600"
-          >
-            --
-          </p>
-          <p id="occupied-samples" class="mt-1 text-xs text-slate-500">
-            Samples: 0
-          </p>
-        </article>
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <p
-            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
-          >
-            Avg Temp (Empty)
-          </p>
-          <p
-            id="avg-temp-empty"
-            class="mt-2 text-3xl font-extrabold text-cyan-600"
-          >
-            --
-          </p>
-          <p id="empty-samples" class="mt-1 text-xs text-slate-500">
-            Samples: 0
-          </p>
-        </article>
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <p
-            class="text-[11px] font-bold uppercase tracking-wider text-slate-500"
-          >
-            Presence Delta
-          </p>
-          <p
-            id="temp-delta"
-            class="mt-2 text-3xl font-extrabold text-violet-600"
-          >
-            --
-          </p>
-          <p class="mt-1 text-xs text-slate-500">
-            Occupied minus Empty temperature
-          </p>
-        </article>
-      </section>
-
-      <section class="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <div class="mb-2 flex items-center justify-between">
-            <h3
-              class="text-sm font-bold uppercase tracking-wider text-slate-600"
-            >
-              Temperature Trend
-            </h3>
-            <span class="text-[11px] font-semibold text-slate-400"
-              >Realtime</span
-            >
-          </div>
-          <canvas id="tempChart" height="130"></canvas>
-        </article>
-
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <div class="mb-2 flex items-center justify-between">
-            <h3
-              class="text-sm font-bold uppercase tracking-wider text-slate-600"
-            >
-              Humidity Trend
-            </h3>
-            <span class="text-[11px] font-semibold text-slate-400"
-              >Realtime</span
-            >
-          </div>
-          <canvas id="humiChart" height="130"></canvas>
-        </article>
-
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <div class="mb-2 flex items-center justify-between">
-            <h3
-              class="text-sm font-bold uppercase tracking-wider text-slate-600"
-            >
-              Heat Index Trend
-            </h3>
-            <span class="text-[11px] font-semibold text-slate-400"
-              >Derived Metric</span
-            >
-          </div>
-          <canvas id="heatChart" height="130"></canvas>
-        </article>
-
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-        >
-          <div class="mb-2 flex items-center justify-between">
-            <h3
-              class="text-sm font-bold uppercase tracking-wider text-slate-600"
-            >
-              Dew Point Trend
-            </h3>
-            <span class="text-[11px] font-semibold text-slate-400"
-              >Derived Metric</span
-            >
-          </div>
-          <canvas id="dewChart" height="130"></canvas>
-        </article>
-
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2"
-        >
-          <div class="mb-2 flex items-center justify-between">
-            <h3
-              class="text-sm font-bold uppercase tracking-wider text-slate-600"
-            >
-              Temp vs Humidity Correlation
-            </h3>
-            <span class="text-[11px] font-semibold text-slate-400"
-              >Scatter (Last 15 points)</span
-            >
-          </div>
-          <canvas id="scatterChart" height="120"></canvas>
-        </article>
-
-        <article
-          class="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm xl:col-span-2"
-        >
-          <div class="mb-2 flex items-center justify-between">
-            <h3
-              class="text-sm font-bold uppercase tracking-wider text-slate-600"
-            >
-              Human Presence Impact (Avg Temperature)
-            </h3>
-            <span class="text-[11px] font-semibold text-slate-400"
-              >Based on labeled occupancy</span
-            >
-          </div>
-          <canvas id="presenceCompareChart" height="115"></canvas>
-        </article>
-      </section>
-
-      <section
-        class="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm"
-      >
-        <div class="mb-2 flex items-center justify-between">
-          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">
-            Event Log
-          </h3>
-          <span class="text-[11px] font-semibold text-slate-400"
-            >Server and ESP activity</span
-          >
-        </div>
-        <div
-          id="terminal-log"
-          class="max-h-64 min-h-40 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-3 font-mono text-xs text-emerald-200"
-        ></div>
-      </section>
-
-      <p
-        class="mt-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500"
-      >
-        ESP32 DHT22 Monitoring Stack
-      </p>
-    </main>
-
-    <script>
-      // const PROD_HOST = "spacetemp.rikiulir.my.id";
-      // const isProduction = window.location.hostname === PROD_HOST;
-      // const API_BASE = isProduction ? "" : "http://localhost:8080";
-      // const WS_URL = isProduction ? `wss://${PROD_HOST}` : "ws://localhost:8080";
-
-      // Jika dibuka lewat localhost, gunakan port :8080 bawaan development Express
-      const isLocalhost =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
-
-      // Jika di localhost gunakan http://localhost:8080, jika di cloud/tunnel ikuti domain yang aktif saat ini
-      const API_BASE = isLocalhost ? "http://localhost:8080" : "";
-
-      // Sesuaikan protokol WS (ws atau wss) secara otomatis mengikuti status SSL domain
-      const wsProtocol =
-        window.location.protocol === "https:" ? "wss://" : "ws://";
-      const WS_URL = isLocalhost
-        ? "ws://localhost:8080"
-        : `${wsProtocol}${window.location.host}`;
-
-      function apiUrl(path) {
-        return `${API_BASE}${path}`;
-      }
-
-      const wsChip = document.getElementById("ws-chip");
-      const monitorChip = document.getElementById("monitor-chip");
-      const espChip = document.getElementById("esp-chip");
-      const presenceChip = document.getElementById("presence-chip");
-      const logContainer = document.getElementById("terminal-log");
-      const btnStart = document.getElementById("btn-start");
-      const btnStop = document.getElementById("btn-stop");
-      const btnPresenceOn = document.getElementById("btn-presence-on");
-      const btnPresenceOff = document.getElementById("btn-presence-off");
-      const mainTemp = document.getElementById("main-temp");
-      const mainHumi = document.getElementById("main-humi");
-      const heatIndexEl = document.getElementById("heat-index");
-      const lastUpdate = document.getElementById("last-update");
-      const packetCount = document.getElementById("packet-count");
-      const runtimeText = document.getElementById("runtime-text");
-      const avgTempOccupied = document.getElementById("avg-temp-occupied");
-      const avgTempEmpty = document.getElementById("avg-temp-empty");
-      const occupiedSamples = document.getElementById("occupied-samples");
-      const emptySamples = document.getElementById("empty-samples");
-      const tempDelta = document.getElementById("temp-delta");
-
-      const MAX_POINTS = 20;
-      const RUNTIME_START_KEY = "dht22_monitoring_runtime_start_ms";
-      const RUNTIME_ACTIVE_KEY = "dht22_monitoring_runtime_active";
-      let packets = 0;
-      let wsConnection = null;
-      let currentPresence = "empty";
-      let runtimeIntervalId = null;
-      let runtimeStartMs = null;
-      const tempHistory = [];
-      const humiHistory = [];
-      const heatHistory = [];
-      const dewHistory = [];
-
-      function formatRuntime(seconds) {
-        const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
-        const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
-        const s = String(seconds % 60).padStart(2, "0");
-        return `${h}:${m}:${s}`;
-      }
-
-      function readStoredRuntimeStart() {
-        try {
-          const active = localStorage.getItem(RUNTIME_ACTIVE_KEY) === "1";
-          const startRaw = localStorage.getItem(RUNTIME_START_KEY);
-          const start = Number(startRaw);
-          if (!active || !Number.isFinite(start) || start <= 0) return null;
-          return start;
-        } catch {
-          return null;
-        }
-      }
-
-      function storeRuntimeStart(startMs) {
-        try {
-          localStorage.setItem(RUNTIME_START_KEY, String(startMs));
-          localStorage.setItem(RUNTIME_ACTIVE_KEY, "1");
-        } catch {
-          // Ignore storage failures, runtime still works in-memory.
-        }
-      }
-
-      function clearStoredRuntime() {
-        try {
-          localStorage.removeItem(RUNTIME_START_KEY);
-          localStorage.setItem(RUNTIME_ACTIVE_KEY, "0");
-        } catch {
-          // Ignore storage failures.
-        }
-      }
-
-      function renderRuntime() {
-        const sec = runtimeStartMs
-          ? Math.max(0, Math.floor((Date.now() - runtimeStartMs) / 1000))
-          : 0;
-        runtimeText.textContent = `Runtime: ${formatRuntime(sec)}`;
-      }
-
-      function startRuntimeTicker() {
-        if (!runtimeStartMs) {
-          runtimeStartMs = Date.now();
-          storeRuntimeStart(runtimeStartMs);
-        }
-        if (runtimeIntervalId) return;
-        renderRuntime();
-        runtimeIntervalId = setInterval(() => {
-          renderRuntime();
-        }, 250);
-      }
-
-      function stopAndResetRuntime() {
-        if (runtimeIntervalId) {
-          clearInterval(runtimeIntervalId);
-          runtimeIntervalId = null;
-        }
-        runtimeStartMs = null;
-        clearStoredRuntime();
-        renderRuntime();
-      }
-
-      function chartOptions() {
-        return {
-          responsive: true,
-          maintainAspectRatio: true,
-          animation: false,
-          plugins: {
-            legend: { display: false },
-          },
-          scales: {
-            x: {
-              ticks: { color: "#64748b", maxTicksLimit: 8 },
-              grid: { color: "rgba(100, 116, 139, 0.15)" },
-            },
-            y: {
-              ticks: { color: "#64748b" },
-              grid: { color: "rgba(100, 116, 139, 0.15)" },
-            },
-          },
-        };
-      }
-
-      const tempChart = new Chart(document.getElementById("tempChart"), {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              data: [],
-              borderColor: "#ea580c",
-              backgroundColor: "rgba(234, 88, 12, 0.15)",
-              fill: true,
-              tension: 0.3,
-              borderWidth: 2.4,
-            },
-          ],
-        },
-        options: chartOptions(),
-      });
-
-      const humiChart = new Chart(document.getElementById("humiChart"), {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              data: [],
-              borderColor: "#0d9488",
-              backgroundColor: "rgba(13, 148, 136, 0.15)",
-              fill: true,
-              tension: 0.3,
-              borderWidth: 2.4,
-            },
-          ],
-        },
-        options: chartOptions(),
-      });
-
-      const heatChart = new Chart(document.getElementById("heatChart"), {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              data: [],
-              borderColor: "#dc2626",
-              backgroundColor: "rgba(220, 38, 38, 0.15)",
-              fill: true,
-              tension: 0.3,
-              borderWidth: 2.4,
-            },
-          ],
-        },
-        options: chartOptions(),
-      });
-
-      const dewChart = new Chart(document.getElementById("dewChart"), {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [
-            {
-              data: [],
-              borderColor: "#2563eb",
-              backgroundColor: "rgba(37, 99, 235, 0.15)",
-              fill: true,
-              tension: 0.3,
-              borderWidth: 2.4,
-            },
-          ],
-        },
-        options: chartOptions(),
-      });
-
-      const scatterChart = new Chart(document.getElementById("scatterChart"), {
-        type: "scatter",
-        data: {
-          datasets: [
-            {
-              data: [],
-              backgroundColor: "rgba(124, 58, 237, 0.6)",
-              borderColor: "rgba(124, 58, 237, 1)",
-              pointRadius: 4,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          animation: false,
-          plugins: {
-            legend: { display: false },
-          },
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: "Temperature (C)",
-                color: "#64748b",
-              },
-              ticks: { color: "#64748b" },
-              grid: { color: "rgba(100, 116, 139, 0.15)" },
-            },
-            y: {
-              title: { display: true, text: "Humidity (%)", color: "#64748b" },
-              ticks: { color: "#64748b" },
-              grid: { color: "rgba(100, 116, 139, 0.15)" },
-            },
-          },
-        },
-      });
-
-      const presenceCompareChart = new Chart(
-        document.getElementById("presenceCompareChart"),
-        {
-          type: "bar",
-          data: {
-            labels: ["Occupied", "Empty"],
-            datasets: [
-              {
-                data: [0, 0],
-                backgroundColor: [
-                  "rgba(192, 38, 211, 0.55)",
-                  "rgba(8, 145, 178, 0.55)",
-                ],
-                borderColor: ["rgba(192, 38, 211, 1)", "rgba(8, 145, 178, 1)"],
-                borderWidth: 1.2,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            animation: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              y: {
-                ticks: { color: "#64748b" },
-                grid: { color: "rgba(100, 116, 139, 0.15)" },
-                title: {
-                  display: true,
-                  text: "Temperature (C)",
-                  color: "#64748b",
-                },
-              },
-              x: {
-                ticks: { color: "#64748b" },
-                grid: { color: "rgba(100, 116, 139, 0.06)" },
-              },
-            },
-          },
-        },
-      );
-
-      function pushSystemLog(message, level = "SYSTEM") {
-        const row = document.createElement("p");
-        row.textContent = `[${new Date().toLocaleTimeString("en-GB")}] [${level}] ${message}`;
-        logContainer.appendChild(row);
-        if (logContainer.children.length > 45) {
-          logContainer.removeChild(logContainer.firstElementChild);
-        }
-        logContainer.scrollTop = logContainer.scrollHeight;
-      }
-
-      function setChip(el, text, tone) {
-        const styles = {
-          ok: "border-emerald-300 bg-emerald-50 text-emerald-700",
-          warn: "border-amber-300 bg-amber-50 text-amber-700",
-          bad: "border-rose-300 bg-rose-50 text-rose-700",
-          neutral: "border-slate-300 bg-slate-100 text-slate-700",
-        };
-        el.className = `inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${styles[tone] || styles.neutral}`;
-        el.innerHTML = `<span class=\"h-2 w-2 rounded-full bg-current\"></span>${text}`;
-      }
-
-      function setMonitoringState(enabled) {
-        const on = Boolean(enabled);
-        setChip(
-          monitorChip,
-          `Monitoring: ${on ? "ON" : "OFF"}`,
-          on ? "ok" : "bad",
-        );
-        btnStart.disabled = on;
-        btnStop.disabled = !on;
-
-        if (on) {
-          startRuntimeTicker();
-        } else {
-          stopAndResetRuntime();
-        }
-      }
-
-      function setEspStatus(status) {
-        if (status === "online") setChip(espChip, "ESP: Online", "ok");
-        else if (status === "offline") setChip(espChip, "ESP: Offline", "bad");
-        else setChip(espChip, "ESP: Searching", "warn");
-      }
-
-      function setWsStatus(connected) {
-        setChip(
-          wsChip,
-          `Dashboard: ${connected ? "Connected" : "Disconnected"}`,
-          connected ? "ok" : "bad",
-        );
-      }
-
-      function setPresenceStatus(status) {
-        currentPresence = status === "occupied" ? "occupied" : "empty";
-        if (currentPresence === "occupied") {
-          setChip(presenceChip, "Presence: Occupied", "ok");
-        } else {
-          setChip(presenceChip, "Presence: Empty", "neutral");
-        }
-        btnPresenceOn.disabled = currentPresence === "occupied";
-        btnPresenceOff.disabled = currentPresence === "empty";
-      }
-
-      function calcHeatIndex(tempC, humi) {
-        const tF = tempC * 1.8 + 32;
-        const hiF =
-          -42.379 +
-          2.04901523 * tF +
-          10.14333127 * humi -
-          0.22475541 * tF * humi -
-          0.00683783 * tF * tF -
-          0.05481717 * humi * humi +
-          0.00122874 * tF * tF * humi +
-          0.00085282 * tF * humi * humi -
-          0.00000199 * tF * tF * humi * humi;
-        return (hiF - 32) / 1.8;
-      }
-
-      function calcDewPoint(tempC, humi) {
-        const a = 17.27;
-        const b = 237.7;
-        const alpha = (a * tempC) / (b + tempC) + Math.log(humi / 100);
-        return (b * alpha) / (a - alpha);
-      }
-
-      function pushSeries(chart, label, value) {
-        chart.data.labels.push(label);
-        chart.data.datasets[0].data.push(value);
-        if (chart.data.labels.length > MAX_POINTS) {
-          chart.data.labels.shift();
-          chart.data.datasets[0].data.shift();
-        }
-        chart.update();
-      }
-
-      /**
-       * Mengubah string waktu dari DB (format: "YYYY-MM-DD HH:MM:SS")
-       * menjadi label waktu pendek "HH:MM:SS".
-       */
-      function formatDataTime(waktuStr) {
-        if (!waktuStr) return "--:--:--";
-        // waktu dari SQLite: "2024-01-01 12:34:56"
-        const parts = String(waktuStr).split(" ");
-        return parts.length >= 2 ? parts[1] : waktuStr;
-      }
-
-      function handleData(rawTemp, rawHumi, rawWaktu) {
-        const temp = Number(rawTemp);
-        const humi = Number(rawHumi);
-        if (!Number.isFinite(temp) || !Number.isFinite(humi)) return;
-
-        packets += 1;
-        // Gunakan waktu dari data, BUKAN waktu device
-        const label = formatDataTime(rawWaktu);
-        const heatIndex = calcHeatIndex(temp, humi);
-        const dewPoint = calcDewPoint(temp, humi);
-
-        mainTemp.textContent = `${temp.toFixed(1)} C`;
-        mainHumi.textContent = `${humi.toFixed(0)} %`;
-        heatIndexEl.textContent = `${heatIndex.toFixed(1)} C`;
-        lastUpdate.textContent = `Last update: ${label}`;
-        packetCount.textContent = `Packets: ${packets}`;
-
-        tempHistory.push(temp);
-        humiHistory.push(humi);
-        heatHistory.push(heatIndex);
-        dewHistory.push(dewPoint);
-        if (tempHistory.length > MAX_POINTS) tempHistory.shift();
-        if (humiHistory.length > MAX_POINTS) humiHistory.shift();
-        if (heatHistory.length > MAX_POINTS) heatHistory.shift();
-        if (dewHistory.length > MAX_POINTS) dewHistory.shift();
-
-        pushSeries(tempChart, label, temp);
-        pushSeries(humiChart, label, humi);
-        pushSeries(heatChart, label, heatIndex);
-        pushSeries(dewChart, label, dewPoint);
-
-        scatterChart.data.datasets[0].data.push({ x: temp, y: humi });
-        if (scatterChart.data.datasets[0].data.length > MAX_POINTS) {
-          scatterChart.data.datasets[0].data.shift();
-        }
-        scatterChart.update();
-
-        refreshPresenceImpact();
-      }
-
-      function formatTemp(value) {
-        return Number.isFinite(value) ? `${value.toFixed(2)} C` : "--";
-      }
-
-      async function refreshPresenceImpact() {
-        try {
-          // Ambil SEMUA data tanpa limit untuk avg & delta yang akurat
-          const res = await fetch(apiUrl("/api/analysis/presence-impact"));
-          const data = await res.json();
-          const occTemp = data?.averages?.occupied?.temp;
-          const emptyTemp = data?.averages?.empty?.temp;
-          const delta = data?.deltas?.temp;
-          const occCount = data?.samples?.occupied ?? 0;
-          const emptyCount = data?.samples?.empty ?? 0;
-
-          avgTempOccupied.textContent = formatTemp(occTemp);
-          avgTempEmpty.textContent = formatTemp(emptyTemp);
-          occupiedSamples.textContent = `Samples: ${occCount}`;
-          emptySamples.textContent = `Samples: ${emptyCount}`;
-          tempDelta.textContent = Number.isFinite(delta)
-            ? `${delta.toFixed(2)} C`
-            : "--";
-
-          presenceCompareChart.data.datasets[0].data = [
-            Number.isFinite(occTemp) ? occTemp : 0,
-            Number.isFinite(emptyTemp) ? emptyTemp : 0,
-          ];
-          presenceCompareChart.update();
-        } catch (error) {
-          pushSystemLog("Failed to refresh presence impact analytics", "WARN");
-        }
-      }
-
-      async function markPresence(status) {
-        try {
-          const res = await fetch(apiUrl("/api/presence/status"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status }),
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            pushSystemLog(data.error || "Failed to mark presence", "ERROR");
-            return;
-          }
-          setPresenceStatus(data.status);
-          pushSystemLog(
-            `Presence marked as ${data.status.toUpperCase()}`,
-            "INFO",
-          );
-          refreshPresenceImpact();
-        } catch (error) {
-          pushSystemLog("Presence request failed", "ERROR");
-        }
-      }
-
-      async function controlMonitoring(action) {
-        try {
-          const res = await fetch(apiUrl(`/api/control/${action}`), {
-            method: "POST",
-          });
-          const json = await res.json();
-          setMonitoringState(json.monitoringEnabled);
-          pushSystemLog(
-            `${action.toUpperCase()} command sent to ESP32`,
-            "INFO",
-          );
-        } catch (error) {
-          pushSystemLog("Failed to control monitoring", "ERROR");
-        }
-      }
-
-      function connectWS() {
-        wsConnection = new WebSocket(WS_URL);
-
-        wsConnection.onopen = () => {
-          setWsStatus(true);
-          setEspStatus("searching");
-          pushSystemLog(`WebSocket connected to ${WS_URL}`, "INFO");
-        };
-
-        wsConnection.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-
-          if (data.type === "esp_ack") {
-            const cmd = data.cmd ? data.cmd.toUpperCase() : "CMD";
-            pushSystemLog(`ESP ACK received for ${cmd}`, "INFO");
-            return;
-          }
-
-          if (data.type === "esp_status") {
-            if (data.status === "connected" || data.status === "online") {
-              setEspStatus("online");
-              pushSystemLog("ESP32 is online", "INFO");
-            } else if (data.status === "offline") {
-              setEspStatus("offline");
-              pushSystemLog("ESP32 is offline", "WARN");
-            }
-            return;
-          }
-
-          if (data.type === "app_status") {
-            pushSystemLog(data.message, "INFO");
-            return;
-          }
-
-          if (data.type === "monitoring") {
-            setMonitoringState(data.enabled);
-            if (data.espOnline !== undefined) {
-              setEspStatus(data.espOnline ? "online" : "offline");
-            }
-            if (data.presenceStatus) {
-              setPresenceStatus(data.presenceStatus);
-            }
-            return;
-          }
-
-          if (data.type === "presence_status") {
-            setPresenceStatus(data.status);
-            pushSystemLog(
-              `Presence updated to ${String(data.status).toUpperCase()}`,
-              "INFO",
-            );
-            refreshPresenceImpact();
-            return;
-          }
-
-          handleData(data.temp, data.humi, data.waktu);
-        };
-
-        wsConnection.onclose = () => {
-          setWsStatus(false);
-          setEspStatus("searching");
-          pushSystemLog("WebSocket disconnected, retrying in 2s", "WARN");
-          setTimeout(connectWS, 2000);
-        };
-
-        wsConnection.onerror = () => {
-          pushSystemLog("WebSocket error", "ERROR");
-        };
-      }
-
-      document.getElementById("btn-start").onclick = () =>
-        controlMonitoring("start");
-      document.getElementById("btn-stop").onclick = () =>
-        controlMonitoring("stop");
-      document.getElementById("btn-presence-on").onclick = () =>
-        markPresence("occupied");
-      document.getElementById("btn-presence-off").onclick = () =>
-        markPresence("empty");
-      document.getElementById("btn-download-presence").onclick = () => {
-        window.location.href = apiUrl("/download/presence-analysis");
-      };
-      document.getElementById("btn-clear").onclick = async () => {
-        if (confirm("Delete all data?")) {
-          await fetch(apiUrl("/api/db/clear"), { method: "POST" });
-          location.reload();
-        }
-      };
-
-      async function init() {
-        runtimeStartMs = readStoredRuntimeStart();
-        renderRuntime();
-        try {
-          const statusRes = await fetch(apiUrl("/api/control/status"));
-          const status = await statusRes.json();
-          setMonitoringState(status.monitoringEnabled);
-          setEspStatus(status.espOnline ? "online" : "offline");
-          setPresenceStatus(status.presenceStatus || "empty");
-
-          // Ambil 15 data terakhir untuk chart
-          const historyRes = await fetch(apiUrl("/api/history?limit=15"));
-          const history = await historyRes.json();
-          history.forEach((row) => handleData(row.temp, row.humi, row.time));
-
-          // Init packets dari total count di DB (bukan hanya 100 yang dimuat)
-          try {
-            const statsRes = await fetch(apiUrl("/api/stats"));
-            const stats = await statsRes.json();
-            packets = stats.totalCount || packets;
-            packetCount.textContent = `Packets: ${packets}`;
-          } catch (_) {
-            /* non-critical */
-          }
-
-          await refreshPresenceImpact();
-
-          pushSystemLog(
-            `Dashboard initialized in ${isProduction ? "Production" : "Local"} mode`,
-            "INFO",
-          );
-        } catch (error) {
-          pushSystemLog("Failed to load initial data", "ERROR");
-        }
-
-        connectWS();
-      }
-
-      init();
-    </script>
-  </body>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Monitoring Ruang Bayi — RSND Undip</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --text: #1a2332;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --green: #16a34a; --green-bg: #dcfce7; --green-border: #86efac;
+      --yellow: #d97706; --yellow-bg: #fef9c3; --yellow-border: #fde047;
+      --red: #dc2626; --red-bg: #fee2e2; --red-border: #fca5a5;
+      --blue: #2563eb;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, #0f4c81 0%, #1a73c8 100%);
+      color: white; padding: 20px 24px; display: flex; align-items: center; gap: 16px;
+    }
+    .header-icon { width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+    .header h1 { font-size: 18px; font-weight: 700; }
+    .header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+    .header-right { margin-left: auto; text-align: right; }
+    .last-update { font-size: 12px; opacity: 0.7; }
+    .live-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* MAIN */
+    .main { max-width: 900px; margin: 0 auto; padding: 20px 16px; }
+
+    /* STATUS BANNER */
+    .status-banner {
+      border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 16px; border: 2px solid transparent;
+      transition: all 0.4s ease;
+    }
+    .status-icon { font-size: 32px; flex-shrink: 0; }
+    .status-title { font-size: 18px; font-weight: 700; }
+    .status-desc { font-size: 14px; margin-top: 3px; }
+    .s-ok  { background: var(--green-bg);  border-color: var(--green-border);  }
+    .s-ok  .status-title { color: var(--green); }
+    .s-ok  .status-desc  { color: #166534; }
+    .s-warn{ background: var(--yellow-bg); border-color: var(--yellow-border); }
+    .s-warn .status-title{ color: var(--yellow); }
+    .s-warn .status-desc { color: #92400e; }
+    .s-bad { background: var(--red-bg);    border-color: var(--red-border);    }
+    .s-bad .status-title { color: var(--red); }
+    .s-bad .status-desc  { color: #991b1b; }
+
+    /* CARDS */
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    .card { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+    .card-icon { font-size: 28px; margin-bottom: 10px; }
+    .card-label { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+    .card-value { font-size: 40px; font-weight: 800; line-height: 1; }
+    .card-unit { font-size: 20px; font-weight: 600; }
+    .card-range { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+    .range-bar { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .range-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease, background 0.4s ease; }
+    .v-temp { color: #c2410c; }
+    .v-humi { color: #0369a1; }
+
+    /* CHART */
+    .section { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.05); margin-bottom: 20px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 700; }
+    .section-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .chart-legend { display: flex; gap: 16px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .chart-wrap { height: 220px; }
+
+    /* TABLE */
+    .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .filter-btn { padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--muted); transition: all .2s; font-family: inherit; }
+    .filter-btn:hover { border-color: #94a3b8; color: var(--text); }
+    .filter-btn.active { background: var(--text); color: white; border-color: var(--text); }
+    .f-ok.active { background: var(--green); border-color: var(--green); }
+    .f-warn.active { background: var(--yellow); border-color: var(--yellow); }
+    .f-bad.active { background: var(--red); border-color: var(--red); }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 0 12px 10px; text-align: left; border-bottom: 2px solid var(--border); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody td { padding: 11px 12px; }
+    .td-time { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .td-val { font-weight: 700; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .b-ok   { background: var(--green-bg);  color: var(--green); }
+    .b-warn { background: var(--yellow-bg); color: var(--yellow); }
+    .b-bad  { background: var(--red-bg);    color: var(--red); }
+
+    .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+    /* CONTROLS */
+    .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .btn { padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: all .2s; font-family: inherit; display: flex; align-items: center; gap: 8px; }
+    .btn-start { background: var(--green); color: white; }
+    .btn-start:hover { background: #15803d; }
+    .btn-stop  { background: var(--red); color: white; }
+    .btn-stop:hover  { background: #b91c1c; }
+    .btn-dl    { background: white; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-dl:hover    { background: #f1f5f9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .esp-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.85); }
+    .esp-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.4); }
+    .esp-dot.online { background: #4ade80; animation: pulse 2s infinite; }
+
+    @media (max-width: 560px) {
+      .cards { grid-template-columns: 1fr; }
+      .card-value { font-size: 32px; }
+      .header h1 { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🏥</div>
+  <div>
+    <h1>Monitoring Ruang Bayi</h1>
+    <p>RSND Undip · Rata-rata 5 menit terakhir</p>
+  </div>
+  <div class="header-right">
+    <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+    <div class="last-update" id="lastUpdate">Memuat data...</div>
+    <div class="esp-status" style="margin-top:6px"><span class="esp-dot" id="espDot"></span><span id="espLabel">Sensor tidak terhubung</span></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- STATUS BANNER -->
+  <div class="status-banner s-ok" id="statusBanner">
+    <div class="status-icon" id="statusIcon">⏳</div>
+    <div>
+      <div class="status-title" id="statusTitle">Menunggu data...</div>
+      <div class="status-desc"  id="statusDesc">Pembacaan pertama dalam beberapa detik</div>
+    </div>
+  </div>
+
+  <!-- METRIC CARDS -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">🌡️</div>
+      <div class="card-label">Suhu Ruangan</div>
+      <div class="card-value v-temp"><span id="valTemp">—</span><span class="card-unit"> °C</span></div>
+      <div class="card-range">
+        <span>24°</span>
+        <div class="range-bar"><div class="range-fill" id="tempBar" style="width:0%;background:#c2410c"></div></div>
+        <span>26°</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">Target normal: 24 – 26 °C</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">💧</div>
+      <div class="card-label">Kelembapan Udara</div>
+      <div class="card-value v-humi"><span id="valHumi">—</span><span class="card-unit"> %</span></div>
+      <div class="card-range">
+        <span>40%</span>
+        <div class="range-bar"><div class="range-fill" id="humiBar" style="width:0%;background:#0369a1"></div></div>
+        <span>60%</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">Target normal: 40 – 60 %</div>
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Grafik Perubahan</div>
+        <div class="section-sub" id="chartSub">Semua data yang tersimpan</div>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#c2410c"></div> Suhu</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#0369a1"></div> Kelembapan</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+  </div>
+
+  <!-- HISTORY TABLE -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Riwayat Data</div>
+        <div class="section-sub" id="historyCount">Semua data tersimpan</div>
+      </div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active"   id="fAll"  onclick="setFilter('all')">Semua</button>
+      <button class="filter-btn f-ok"     id="fOk"   onclick="setFilter('ok')">✅ Kondisi Ideal</button>
+      <button class="filter-btn f-warn"   id="fWarn" onclick="setFilter('warn')">⚠️ Perlu Perhatian</button>
+      <button class="filter-btn f-bad"    id="fBad"  onclick="setFilter('bad')">🚨 Di Luar Batas</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Waktu</th>
+            <th>Suhu</th>
+            <th>Kelembapan</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <tr><td colspan="4" class="empty-state">Belum ada data</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const allData = [];
+let activeFilter = 'all';
+let monitoringEnabled = false;
+let ws = null;
+
+// ── Status helpers ────────────────────────────────────────────────────────────
+function getStatus(t, h) {
+  if (t >= 24 && t <= 26 && h >= 40 && h <= 60)
+    return { cls: 's-ok',  icon: '✅', title: 'Kondisi Ideal',        desc: 'Suhu dan kelembapan dalam batas aman untuk bayi.', badge: 'ok',   badgeText: 'Ideal' };
+  if (t >= 23 && t <= 28 && h >= 35 && h <= 70)
+    return { cls: 's-warn',icon: '⚠️', title: 'Perlu Diperhatikan',   desc: 'Kondisi mendekati batas — harap pantau lebih sering.', badge: 'warn', badgeText: 'Perhatian' };
+  return   { cls: 's-bad', icon: '🚨', title: 'Di Luar Batas Aman',   desc: 'Segera periksa AC / ventilasi ruangan!', badge: 'bad',  badgeText: 'Waspada' };
+}
+
+function mean5min() {
+  const now = Date.now();
+  const win = allData.filter(d => now - d.ts <= 5 * 60 * 1000);
+  if (!win.length) return null;
+  const t = win.reduce((s, d) => s + d.temp, 0) / win.length;
+  const h = win.reduce((s, d) => s + d.humi, 0) / win.length;
+  return { temp: +t.toFixed(1), humi: +h.toFixed(1) };
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+const chart = new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'Suhu (°C)',      data: [], borderColor: '#c2410c', backgroundColor: 'rgba(194,65,12,.08)',  yAxisID: 'y',  borderWidth: 2, pointRadius: 2, fill: true, tension: .35 },
+      { label: 'Kelembapan (%)', data: [], borderColor: '#0369a1', backgroundColor: 'rgba(3,105,161,.08)', yAxisID: 'y1', borderWidth: 2, pointRadius: 2, fill: true, tension: .35 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false } },
+    scales: {
+      y:  { position: 'left',  suggestedMin: 20, suggestedMax: 34, grid: { color: 'rgba(0,0,0,.05)' }, ticks: { font: { size: 11 }, callback: v => v + '°C' } },
+      y1: { position: 'right', suggestedMin: 30, suggestedMax: 80, grid: { drawOnChartArea: false },   ticks: { font: { size: 11 }, callback: v => v + '%' } },
+      x:  { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 8, autoSkip: true } }
+    }
+  }
+});
+
+function updateChart() {
+  const src = filtered();
+  chart.data.labels            = src.map(d => d.time);
+  chart.data.datasets[0].data  = src.map(d => d.temp);
+  chart.data.datasets[1].data  = src.map(d => d.humi);
+  document.getElementById('chartSub').textContent = src.length + ' pembacaan ditampilkan';
+  chart.update('none');
+}
+
+// ── Log table ─────────────────────────────────────────────────────────────────
+function filtered() {
+  return activeFilter === 'all' ? allData : allData.filter(d => getStatus(d.temp, d.humi).badge === activeFilter);
+}
+
+function renderLog() {
+  const src = [...filtered()].reverse().slice(0, 100);
+  const lb  = document.getElementById('logBody');
+  if (!src.length) { lb.innerHTML = '<tr><td colspan="4" class="empty-state">Tidak ada data untuk filter ini</td></tr>'; return; }
+  lb.innerHTML = src.map(d => {
+    const s = getStatus(d.temp, d.humi);
+    return `<tr>
+      <td class="td-time">${d.time}</td>
+      <td class="td-val v-temp">${d.temp.toFixed(1)} °C</td>
+      <td class="td-val v-humi">${d.humi.toFixed(1)} %</td>
+      <td><span class="badge b-${s.badge}">${s.icon} ${s.badgeText}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('historyCount').textContent = filtered().length + ' data tersimpan';
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById({ all: 'fAll', ok: 'fOk', warn: 'fWarn', bad: 'fBad' }[f]).classList.add('active');
+  updateChart(); renderLog();
+}
+
+// ── UI update ─────────────────────────────────────────────────────────────────
+function updateCards() {
+  const avg = mean5min();
+  if (!avg) return;
+  const s = getStatus(avg.temp, avg.humi);
+
+  document.getElementById('valTemp').textContent = avg.temp.toFixed(1);
+  document.getElementById('valHumi').textContent = avg.humi.toFixed(1);
+
+  // Range bars (temp: 20-34, humi: 30-80)
+  const tPct = Math.min(100, Math.max(0, (avg.temp - 20) / 14 * 100));
+  const hPct = Math.min(100, Math.max(0, (avg.humi - 30) / 50 * 100));
+  const tColor = s.badge === 'ok' ? '#16a34a' : s.badge === 'warn' ? '#d97706' : '#dc2626';
+  document.getElementById('tempBar').style.cssText = `width:${tPct}%;background:${tColor}`;
+  document.getElementById('humiBar').style.cssText = `width:${hPct}%;background:${tColor}`;
+
+  // Status banner
+  const b = document.getElementById('statusBanner');
+  b.className = 'status-banner ' + s.cls;
+  document.getElementById('statusIcon').textContent  = s.icon;
+  document.getElementById('statusTitle').textContent = s.title;
+  document.getElementById('statusDesc').textContent  = s.desc;
+
+  // Last update time
+  const now = new Date();
+  document.getElementById('lastUpdate').textContent = 'Diperbarui ' +
+    now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// ── Ingest new data point ─────────────────────────────────────────────────────
+function ingest(temp, humi, timeStr, ts) {
+  allData.push({ temp, humi, time: timeStr || new Date().toLocaleTimeString('id-ID', { hour12: false }), ts: ts || Date.now() });
+  updateCards(); updateChart(); renderLog();
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────────
+function connectWs() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen = () => console.log('WS connected');
+  ws.onclose = () => { setTimeout(connectWs, 3000); };
+
+  ws.onmessage = (e) => {
+    let d;
+    try { d = JSON.parse(e.data); } catch { return; }
+
+    if (d.type === 'monitoring') {
+      monitoringEnabled = d.enabled;
+      syncButtons();
+      if (d.espOnline !== undefined) setEspStatus(d.espOnline);
+    }
+    if (d.type === 'esp_status') setEspStatus(d.status === 'online');
+    if (d.type === 'app_status') console.log(d.message);
+
+    // Sensor payload
+    const t = d.temp !== undefined ? d.temp : d.temperature !== undefined ? d.temperature : d.t;
+    const h = d.humi !== undefined ? d.humi : d.humidity  !== undefined ? d.humidity  : d.h;
+    if (t != null && h != null) {
+      const ts  = d.waktu ? new Date(d.waktu).getTime() : Date.now();
+      const str = d.waktu
+        ? new Date(d.waktu).toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false })
+        : new Date().toLocaleTimeString('id-ID', { hour12: false });
+      ingest(+t, +h, str, ts);
+    }
+  };
+}
+
+function setEspStatus(online) {
+  document.getElementById('espDot').className  = 'esp-dot' + (online ? ' online' : '');
+  document.getElementById('espLabel').textContent = online ? 'Sensor terhubung' : 'Sensor tidak terhubung';
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function syncButtons() {
+  document.getElementById('btnStart').disabled = monitoringEnabled;
+  document.getElementById('btnStop').disabled  = !monitoringEnabled;
+}
+
+async function startMonitoring() {
+  await fetch('/api/control/start', { method: 'POST' });
+  monitoringEnabled = true; syncButtons();
+}
+async function stopMonitoring() {
+  await fetch('/api/control/stop', { method: 'POST' });
+  monitoringEnabled = false; syncButtons();
+}
+
+// ── Bootstrap: load history then connect WS ───────────────────────────────────
+async function bootstrap() {
+  try {
+    const r = await fetch('/api/history?limit=500');
+    const rows = await r.json();
+    rows.forEach(row => {
+      const ts  = row.time ? new Date(row.time).getTime() : Date.now();
+      const str = row.time
+        ? new Date(row.time).toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false })
+        : '—';
+      allData.push({ temp: +row.temp, humi: +row.humi, time: str, ts });
+    });
+    if (allData.length) { updateCards(); updateChart(); renderLog(); }
+  } catch(e) { console.warn('History load failed', e); }
+
+  try {
+    const s = await fetch('/api/control/status');
+    const d = await s.json();
+    monitoringEnabled = d.monitoringEnabled;
+    setEspStatus(d.espOnline);
+    syncButtons();
+  } catch {}
+
+  connectWs();
+}
+
+bootstrap();
+</script>
+</body>
 </html>
