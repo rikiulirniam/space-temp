@@ -1,432 +1,1059 @@
 <!doctype html>
 <html lang="id">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Monitoring Ruang Bayi — RSND Undip</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #f0f4f8;
-      --card: #ffffff;
-      --text: #1a2332;
-      --muted: #64748b;
-      --border: #e2e8f0;
-      --green: #16a34a; --green-bg: #dcfce7; --green-border: #86efac;
-      --yellow: #d97706; --yellow-bg: #fef9c3; --yellow-border: #fde047;
-      --red: #dc2626; --red-bg: #fee2e2; --red-border: #fca5a5;
-      --blue: #2563eb;
-      --radius: 16px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Monitoring Ruang Bayi — RSND Undip</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f0f4f8;
+        --card: #ffffff;
+        --text: #1a2332;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --green: #16a34a;
+        --green-bg: #dcfce7;
+        --green-border: #86efac;
+        --yellow: #d97706;
+        --yellow-bg: #fef9c3;
+        --yellow-border: #fde047;
+        --red: #dc2626;
+        --red-bg: #fee2e2;
+        --red-border: #fca5a5;
+        --blue: #2563eb;
+        --radius: 16px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
 
-    /* HEADER */
-    .header {
-      background: linear-gradient(135deg, #0f4c81 0%, #1a73c8 100%);
-      color: white; padding: 20px 24px; display: flex; align-items: center; gap: 16px;
-    }
-    .header-icon { width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-    .header h1 { font-size: 18px; font-weight: 700; }
-    .header p { font-size: 13px; opacity: 0.8; margin-top: 2px; }
-    .header-right { margin-left: auto; text-align: right; }
-    .last-update { font-size: 12px; opacity: 0.7; }
-    .live-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.15); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
-    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+      /* HEADER */
+      .header {
+        background: linear-gradient(135deg, #0f4c81 0%, #1a73c8 100%);
+        color: white;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .header-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+      .header h1 {
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .header p {
+        font-size: 13px;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+      .header-right {
+        margin-left: auto;
+        text-align: right;
+      }
+      .last-update {
+        font-size: 12px;
+        opacity: 0.7;
+      }
+      .live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4ade80;
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
 
-    /* MAIN */
-    .main { max-width: 900px; margin: 0 auto; padding: 20px 16px; }
+      /* MAIN */
+      .main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px 16px;
+      }
 
-    /* STATUS BANNER */
-    .status-banner {
-      border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px;
-      display: flex; align-items: center; gap: 16px; border: 2px solid transparent;
-      transition: all 0.4s ease;
-    }
-    .status-icon { font-size: 32px; flex-shrink: 0; }
-    .status-title { font-size: 18px; font-weight: 700; }
-    .status-desc { font-size: 14px; margin-top: 3px; }
-    .s-ok  { background: var(--green-bg);  border-color: var(--green-border);  }
-    .s-ok  .status-title { color: var(--green); }
-    .s-ok  .status-desc  { color: #166534; }
-    .s-warn{ background: var(--yellow-bg); border-color: var(--yellow-border); }
-    .s-warn .status-title{ color: var(--yellow); }
-    .s-warn .status-desc { color: #92400e; }
-    .s-bad { background: var(--red-bg);    border-color: var(--red-border);    }
-    .s-bad .status-title { color: var(--red); }
-    .s-bad .status-desc  { color: #991b1b; }
+      /* STATUS BANNER */
+      .status-banner {
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        border: 2px solid transparent;
+        transition: all 0.4s ease;
+      }
+      .status-icon {
+        font-size: 32px;
+        flex-shrink: 0;
+      }
+      .status-title {
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .status-desc {
+        font-size: 14px;
+        margin-top: 3px;
+      }
+      .s-ok {
+        background: var(--green-bg);
+        border-color: var(--green-border);
+      }
+      .s-ok .status-title {
+        color: var(--green);
+      }
+      .s-ok .status-desc {
+        color: #166534;
+      }
+      .s-warn {
+        background: var(--yellow-bg);
+        border-color: var(--yellow-border);
+      }
+      .s-warn .status-title {
+        color: var(--yellow);
+      }
+      .s-warn .status-desc {
+        color: #92400e;
+      }
+      .s-bad {
+        background: var(--red-bg);
+        border-color: var(--red-border);
+      }
+      .s-bad .status-title {
+        color: var(--red);
+      }
+      .s-bad .status-desc {
+        color: #991b1b;
+      }
 
-    /* CARDS */
-    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
-    .card { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.05); }
-    .card-icon { font-size: 28px; margin-bottom: 10px; }
-    .card-label { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
-    .card-value { font-size: 40px; font-weight: 800; line-height: 1; }
-    .card-unit { font-size: 20px; font-weight: 600; }
-    .card-range { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
-    .range-bar { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
-    .range-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease, background 0.4s ease; }
-    .v-temp { color: #c2410c; }
-    .v-humi { color: #0369a1; }
+      /* CARDS */
+      .cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 20px;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      }
+      .card-icon {
+        font-size: 28px;
+        margin-bottom: 10px;
+      }
+      .card-label {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 500;
+        margin-bottom: 6px;
+      }
+      .card-value {
+        font-size: 40px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .card-unit {
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .card-range {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .range-bar {
+        flex: 1;
+        height: 6px;
+        background: var(--border);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .range-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition:
+          width 0.6s ease,
+          background 0.4s ease;
+      }
+      .v-temp {
+        color: #c2410c;
+      }
+      .v-humi {
+        color: #0369a1;
+      }
 
-    /* CHART */
-    .section { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.05); margin-bottom: 20px; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .section-title { font-size: 15px; font-weight: 700; }
-    .section-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .chart-legend { display: flex; gap: 16px; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .chart-wrap { height: 220px; }
+      /* CHART */
+      .section {
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 20px;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+      }
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .section-title {
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .section-sub {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .chart-legend {
+        display: flex;
+        gap: 16px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .chart-wrap {
+        height: 220px;
+      }
 
-    /* TABLE */
-    .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-    .filter-btn { padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--muted); transition: all .2s; font-family: inherit; }
-    .filter-btn:hover { border-color: #94a3b8; color: var(--text); }
-    .filter-btn.active { background: var(--text); color: white; border-color: var(--text); }
-    .f-ok.active { background: var(--green); border-color: var(--green); }
-    .f-warn.active { background: var(--yellow); border-color: var(--yellow); }
-    .f-bad.active { background: var(--red); border-color: var(--red); }
+      /* TABLE */
+      .filter-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      .filter-btn {
+        padding: 7px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1.5px solid var(--border);
+        background: white;
+        color: var(--muted);
+        transition: all 0.2s;
+        font-family: inherit;
+      }
+      .filter-btn:hover {
+        border-color: #94a3b8;
+        color: var(--text);
+      }
+      .filter-btn.active {
+        background: var(--text);
+        color: white;
+        border-color: var(--text);
+      }
+      .f-ok.active {
+        background: var(--green);
+        border-color: var(--green);
+      }
+      .f-warn.active {
+        background: var(--yellow);
+        border-color: var(--yellow);
+      }
+      .f-bad.active {
+        background: var(--red);
+        border-color: var(--red);
+      }
 
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    thead th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 0 12px 10px; text-align: left; border-bottom: 2px solid var(--border); }
-    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: #f8fafc; }
-    tbody td { padding: 11px 12px; }
-    .td-time { font-size: 13px; color: var(--muted); white-space: nowrap; }
-    .td-val { font-weight: 700; }
-    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-    .b-ok   { background: var(--green-bg);  color: var(--green); }
-    .b-warn { background: var(--yellow-bg); color: var(--yellow); }
-    .b-bad  { background: var(--red-bg);    color: var(--red); }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      thead th {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        padding: 0 12px 10px;
+        text-align: left;
+        border-bottom: 2px solid var(--border);
+      }
+      tbody tr {
+        border-bottom: 1px solid var(--border);
+        transition: background 0.15s;
+      }
+      tbody tr:last-child {
+        border-bottom: none;
+      }
+      tbody tr:hover {
+        background: #f8fafc;
+      }
+      tbody td {
+        padding: 11px 12px;
+      }
+      .td-time {
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .td-val {
+        font-weight: 700;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .b-ok {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .b-warn {
+        background: var(--yellow-bg);
+        color: var(--yellow);
+      }
+      .b-bad {
+        background: var(--red-bg);
+        color: var(--red);
+      }
 
-    .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--muted);
+        font-size: 14px;
+      }
 
-    /* CONTROLS */
-    .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-    .btn { padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: all .2s; font-family: inherit; display: flex; align-items: center; gap: 8px; }
-    .btn-start { background: var(--green); color: white; }
-    .btn-start:hover { background: #15803d; }
-    .btn-stop  { background: var(--red); color: white; }
-    .btn-stop:hover  { background: #b91c1c; }
-    .btn-dl    { background: white; color: var(--text); border: 1.5px solid var(--border); }
-    .btn-dl:hover    { background: #f1f5f9; }
-    .btn:disabled { opacity: .5; cursor: not-allowed; }
+      /* CONTROLS */
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-start {
+        background: var(--green);
+        color: white;
+      }
+      .btn-start:hover {
+        background: #15803d;
+      }
+      .btn-stop {
+        background: var(--red);
+        color: white;
+      }
+      .btn-stop:hover {
+        background: #b91c1c;
+      }
+      .btn-dl {
+        background: white;
+        color: var(--text);
+        border: 1.5px solid var(--border);
+      }
+      .btn-dl:hover {
+        background: #f1f5f9;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .session-pill {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid #bfdbfe;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .link-disabled {
+        opacity: 0.5;
+        pointer-events: none;
+      }
 
-    .esp-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.85); }
-    .esp-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.4); }
-    .esp-dot.online { background: #4ade80; animation: pulse 2s infinite; }
+      .esp-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .esp-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.4);
+      }
+      .esp-dot.online {
+        background: #4ade80;
+        animation: pulse 2s infinite;
+      }
 
-    @media (max-width: 560px) {
-      .cards { grid-template-columns: 1fr; }
-      .card-value { font-size: 32px; }
-      .header h1 { font-size: 15px; }
-    }
-  </style>
-</head>
-<body>
-
-<div class="header">
-  <div class="header-icon">🏥</div>
-  <div>
-    <h1>Monitoring Ruang Bayi</h1>
-    <p>RSND Undip · Rata-rata 5 menit terakhir</p>
-  </div>
-  <div class="header-right">
-    <div class="live-badge"><span class="live-dot"></span> LIVE</div>
-    <div class="last-update" id="lastUpdate">Memuat data...</div>
-    <div class="esp-status" style="margin-top:6px"><span class="esp-dot" id="espDot"></span><span id="espLabel">Sensor tidak terhubung</span></div>
-  </div>
-</div>
-
-<div class="main">
-
-  <!-- STATUS BANNER -->
-  <div class="status-banner s-ok" id="statusBanner">
-    <div class="status-icon" id="statusIcon">⏳</div>
-    <div>
-      <div class="status-title" id="statusTitle">Menunggu data...</div>
-      <div class="status-desc"  id="statusDesc">Pembacaan pertama dalam beberapa detik</div>
-    </div>
-  </div>
-
-  <!-- METRIC CARDS -->
-  <div class="cards">
-    <div class="card">
-      <div class="card-icon">🌡️</div>
-      <div class="card-label">Suhu Ruangan</div>
-      <div class="card-value v-temp"><span id="valTemp">—</span><span class="card-unit"> °C</span></div>
-      <div class="card-range">
-        <span>24°</span>
-        <div class="range-bar"><div class="range-fill" id="tempBar" style="width:0%;background:#c2410c"></div></div>
-        <span>26°</span>
-      </div>
-      <div style="font-size:12px;color:var(--muted);margin-top:6px">Target normal: 24 – 26 °C</div>
-    </div>
-    <div class="card">
-      <div class="card-icon">💧</div>
-      <div class="card-label">Kelembapan Udara</div>
-      <div class="card-value v-humi"><span id="valHumi">—</span><span class="card-unit"> %</span></div>
-      <div class="card-range">
-        <span>40%</span>
-        <div class="range-bar"><div class="range-fill" id="humiBar" style="width:0%;background:#0369a1"></div></div>
-        <span>60%</span>
-      </div>
-      <div style="font-size:12px;color:var(--muted);margin-top:6px">Target normal: 40 – 60 %</div>
-    </div>
-  </div>
-
-  <!-- CHART -->
-  <div class="section">
-    <div class="section-header">
+      @media (max-width: 560px) {
+        .cards {
+          grid-template-columns: 1fr;
+        }
+        .card-value {
+          font-size: 32px;
+        }
+        .header h1 {
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-icon">🏥</div>
       <div>
-        <div class="section-title">Grafik Perubahan</div>
-        <div class="section-sub" id="chartSub">Semua data yang tersimpan</div>
+        <h1>Monitoring Kelayakan Suhu Ruang</h1>
+        <p>Data Realtime</p>
       </div>
-      <div class="chart-legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#c2410c"></div> Suhu</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#0369a1"></div> Kelembapan</div>
-      </div>
-    </div>
-    <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
-  </div>
-
-  <!-- HISTORY TABLE -->
-  <div class="section">
-    <div class="section-header">
-      <div>
-        <div class="section-title">Riwayat Data</div>
-        <div class="section-sub" id="historyCount">Semua data tersimpan</div>
+      <div class="header-right">
+        <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+        <div class="last-update" id="lastUpdate">Memuat data...</div>
+        <div class="esp-status" style="margin-top: 6px">
+          <span class="esp-dot" id="espDot"></span
+          ><span id="espLabel">Sensor tidak terhubung</span>
+        </div>
       </div>
     </div>
-    <div class="filter-row">
-      <button class="filter-btn active"   id="fAll"  onclick="setFilter('all')">Semua</button>
-      <button class="filter-btn f-ok"     id="fOk"   onclick="setFilter('ok')">✅ Kondisi Ideal</button>
-      <button class="filter-btn f-warn"   id="fWarn" onclick="setFilter('warn')">⚠️ Perlu Perhatian</button>
-      <button class="filter-btn f-bad"    id="fBad"  onclick="setFilter('bad')">🚨 Di Luar Batas</button>
+
+    <div class="main">
+      <!-- STATUS BANNER -->
+      <div class="status-banner s-ok" id="statusBanner">
+        <div class="status-icon" id="statusIcon">⏳</div>
+        <div>
+          <div class="status-title" id="statusTitle">Menunggu data...</div>
+          <div class="status-desc" id="statusDesc">
+            Pembacaan pertama dalam beberapa detik
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-start" id="btnStart" onclick="startMonitoring()">
+          ▶ Mulai Monitoring
+        </button>
+        <button class="btn btn-stop" id="btnStop" onclick="stopMonitoring()">
+          ⏹ Hentikan
+        </button>
+        <div class="session-pill" id="sessionLabel">Sesi: —</div>
+        <a
+          href="/download/session"
+          id="btnDownload"
+          class="btn btn-dl"
+          style="text-decoration: none; margin-left: auto"
+          >⬇ Unduh CSV Sesi</a
+        >
+      </div>
+
+      <!-- METRIC CARDS -->
+      <div class="cards">
+        <div class="card">
+          <div class="card-icon">[Temp]</div>
+          <div class="card-label">Suhu Ruangan</div>
+          <div class="card-value v-temp">
+            <span id="valTemp">—</span><span class="card-unit"> °C</span>
+          </div>
+          <div class="card-range">
+            <span>20°</span>
+            <div class="range-bar">
+              <div
+                class="range-fill"
+                id="tempBar"
+                style="width: 0%; background: #c2410c"
+              ></div>
+            </div>
+            <span>35°</span>
+          </div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 6px">
+            Target normal: 24 - 27 °C
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon">💧</div>
+          <div class="card-label">Kelembapan Udara</div>
+          <div class="card-value v-humi">
+            <span id="valHumi">—</span><span class="card-unit"> %</span>
+          </div>
+          <div class="card-range">
+            <span>40%</span>
+            <div class="range-bar">
+              <div
+                class="range-fill"
+                id="humiBar"
+                style="width: 0%; background: #0369a1"
+              ></div>
+            </div>
+            <span>60%</span>
+          </div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 6px">
+            Target normal: 40 – 60 %
+          </div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="section">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Grafik Perubahan</div>
+            <div class="section-sub" id="chartSub">
+              Semua data yang tersimpan
+            </div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background: #c2410c"></div>
+              Suhu
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: #0369a1"></div>
+              Kelembapan
+            </div>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+
+      <!-- HISTORY TABLE -->
+      <div class="section">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Riwayat Data</div>
+            <div class="section-sub" id="historyCount">
+              Semua data tersimpan
+            </div>
+          </div>
+        </div>
+        <div class="filter-row">
+          <button
+            class="filter-btn active"
+            id="fAll"
+            onclick="setFilter('all')"
+          >
+            Semua
+          </button>
+          <button class="filter-btn f-ok" id="fOk" onclick="setFilter('ok')">
+            ✅ Kondisi Ideal
+          </button>
+          <button
+            class="filter-btn f-warn"
+            id="fWarn"
+            onclick="setFilter('warn')"
+          >
+            ⚠️ Perlu Perhatian
+          </button>
+          <button class="filter-btn f-bad" id="fBad" onclick="setFilter('bad')">
+            🚨 Di Luar Batas
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Suhu</th>
+                <th>Kelembapan</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="logBody">
+              <tr>
+                <td colspan="4" class="empty-state">Belum ada data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Waktu</th>
-            <th>Suhu</th>
-            <th>Kelembapan</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="logBody">
-          <tr><td colspan="4" class="empty-state">Belum ada data</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 
-</div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+      const allData = [];
+      let activeFilter = "all";
+      let monitoringEnabled = false;
+      let currentSessionId = null;
+      let ws = null;
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
-const allData = [];
-let activeFilter = 'all';
-let monitoringEnabled = false;
-let ws = null;
+      // ── Status helpers ────────────────────────────────────────────────────────────
+      function getStatus(t, h) {
+        // 1. Kondisi Bahaya: Suhu >= 35 atau < 24
+        if (t >= 35 || t < 24) {
+          return {
+            cls: "s-bad",
+            icon: "[X]",
+            title: "Di Luar Batas Aman",
+            desc: "Suhu ekstrem (>= 35 C atau < 24 C). Segera periksa ruangan.",
+            badge: "bad",
+            badgeText: "Bahaya",
+          };
+        }
+        // 2. Kondisi Ideal: Suhu 20-30
+        else if (t >= 20 && t <= 30) {
+          return {
+            cls: "s-ok",
+            icon: "[OK]",
+            title: "Kondisi Ideal",
+            desc: "Suhu ruangan dalam batas nyaman untuk bayi.",
+            badge: "ok",
+            badgeText: "Ideal",
+          };
+        }
+        // 3. Peringatan: Berada di antara Ideal dan Bahaya (suhu 22-23 atau 28-30)
+        else {
+          return {
+            cls: "s-warn",
+            icon: "[!]",
+            title: "Perlu Diperhatikan",
+            desc: "Suhu mulai tidak ideal, pantau kondisi ruangan.",
+            badge: "warn",
+            badgeText: "Perhatian",
+          };
+        }
+      }
 
-// ── Status helpers ────────────────────────────────────────────────────────────
-function getStatus(t, h) {
-  if (t >= 24 && t <= 26 && h >= 40 && h <= 60)
-    return { cls: 's-ok',  icon: '✅', title: 'Kondisi Ideal',        desc: 'Suhu dan kelembapan dalam batas aman untuk bayi.', badge: 'ok',   badgeText: 'Ideal' };
-  if (t >= 23 && t <= 28 && h >= 35 && h <= 70)
-    return { cls: 's-warn',icon: '⚠️', title: 'Perlu Diperhatikan',   desc: 'Kondisi mendekati batas — harap pantau lebih sering.', badge: 'warn', badgeText: 'Perhatian' };
-  return   { cls: 's-bad', icon: '🚨', title: 'Di Luar Batas Aman',   desc: 'Segera periksa AC / ventilasi ruangan!', badge: 'bad',  badgeText: 'Waspada' };
-}
+      function mean5min() {
+        const now = Date.now();
+        const win = allData.filter((d) => now - d.ts <= 5 * 60 * 1000);
+        if (!win.length) return null;
+        const t = win.reduce((s, d) => s + d.temp, 0) / win.length;
+        const h = win.reduce((s, d) => s + d.humi, 0) / win.length;
+        return { temp: +t.toFixed(1), humi: +h.toFixed(1) };
+      }
 
-function mean5min() {
-  const now = Date.now();
-  const win = allData.filter(d => now - d.ts <= 5 * 60 * 1000);
-  if (!win.length) return null;
-  const t = win.reduce((s, d) => s + d.temp, 0) / win.length;
-  const h = win.reduce((s, d) => s + d.humi, 0) / win.length;
-  return { temp: +t.toFixed(1), humi: +h.toFixed(1) };
-}
+      // ── Chart ─────────────────────────────────────────────────────────────────────
+      const chart = new Chart(document.getElementById("trendChart"), {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Suhu (C)",
+              data: [],
+              borderColor: "#c2410c",
+              backgroundColor: "rgba(194,65,12,.08)",
+              yAxisID: "y",
+              borderWidth: 2,
+              pointRadius: 0, // Titik hilang saat diam
+              pointHoverRadius: 5, // Titik muncul saat disorot kursor
+              fill: true,
+              tension: 0.4, // Garis grafik melengkung (smooth curve)
+            },
+            {
+              label: "Kelembapan (%)",
+              data: [],
+              borderColor: "#0369a1",
+              backgroundColor: "rgba(3,105,161,.08)",
+              yAxisID: "y1",
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              fill: true,
+              tension: 0.4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              position: "left",
+              grid: { color: "rgba(0,0,0,.05)" },
+              ticks: { font: { size: 11 }, callback: (v) => v + " C" },
+            },
+            y1: {
+              position: "right",
+              grid: { drawOnChartArea: false },
+              ticks: { font: { size: 11 }, callback: (v) => v + "%" },
+            },
+            x: {
+              grid: { display: false },
+              ticks: {
+                font: { size: 10 },
+                maxTicksLimit: 7, // Batasi jumlah label waktu agar tidak tumpang tindih
+                maxRotation: 0, // Label dipaksa horizontal
+              },
+            },
+          },
+        },
+      });
 
-// ── Chart ─────────────────────────────────────────────────────────────────────
-const chart = new Chart(document.getElementById('trendChart'), {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [
-      { label: 'Suhu (°C)',      data: [], borderColor: '#c2410c', backgroundColor: 'rgba(194,65,12,.08)',  yAxisID: 'y',  borderWidth: 2, pointRadius: 2, fill: true, tension: .35 },
-      { label: 'Kelembapan (%)', data: [], borderColor: '#0369a1', backgroundColor: 'rgba(3,105,161,.08)', yAxisID: 'y1', borderWidth: 2, pointRadius: 2, fill: true, tension: .35 }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { display: false } },
-    scales: {
-      y:  { position: 'left',  suggestedMin: 20, suggestedMax: 34, grid: { color: 'rgba(0,0,0,.05)' }, ticks: { font: { size: 11 }, callback: v => v + '°C' } },
-      y1: { position: 'right', suggestedMin: 30, suggestedMax: 80, grid: { drawOnChartArea: false },   ticks: { font: { size: 11 }, callback: v => v + '%' } },
-      x:  { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 8, autoSkip: true } }
-    }
-  }
-});
+      function updateChart() {
+        const src = filtered();
 
-function updateChart() {
-  const src = filtered();
-  chart.data.labels            = src.map(d => d.time);
-  chart.data.datasets[0].data  = src.map(d => d.temp);
-  chart.data.datasets[1].data  = src.map(d => d.humi);
-  document.getElementById('chartSub').textContent = src.length + ' pembacaan ditampilkan';
-  chart.update('none');
-}
+        // Format label sumbu X menjadi HH:MM saja agar rapi di layar
+        chart.data.labels = src.map((d) => {
+          const parts = d.time.split(" ");
+          const timePart = parts.length > 1 ? parts[1] : d.time;
+          return timePart.substring(0, 5);
+        });
 
-// ── Log table ─────────────────────────────────────────────────────────────────
-function filtered() {
-  return activeFilter === 'all' ? allData : allData.filter(d => getStatus(d.temp, d.humi).badge === activeFilter);
-}
+        chart.data.datasets[0].data = src.map((d) => d.temp);
+        chart.data.datasets[1].data = src.map((d) => d.humi);
+        document.getElementById("chartSub").textContent =
+          src.length + " pembacaan ditampilkan";
+        chart.update("none");
+      }
 
-function renderLog() {
-  const src = [...filtered()].reverse().slice(0, 100);
-  const lb  = document.getElementById('logBody');
-  if (!src.length) { lb.innerHTML = '<tr><td colspan="4" class="empty-state">Tidak ada data untuk filter ini</td></tr>'; return; }
-  lb.innerHTML = src.map(d => {
-    const s = getStatus(d.temp, d.humi);
-    return `<tr>
+      // ── Log table ─────────────────────────────────────────────────────────────────
+      function filtered() {
+        return activeFilter === "all"
+          ? allData
+          : allData.filter(
+              (d) => getStatus(d.temp, d.humi).badge === activeFilter,
+            );
+      }
+
+      function renderLog() {
+        const src = [...filtered()].reverse().slice(0, 100);
+        const lb = document.getElementById("logBody");
+        if (!src.length) {
+          lb.innerHTML =
+            '<tr><td colspan="4" class="empty-state">Tidak ada data untuk filter ini</td></tr>';
+          return;
+        }
+        lb.innerHTML = src
+          .map((d) => {
+            const s = getStatus(d.temp, d.humi);
+            return `<tr>
       <td class="td-time">${d.time}</td>
       <td class="td-val v-temp">${d.temp.toFixed(1)} °C</td>
       <td class="td-val v-humi">${d.humi.toFixed(1)} %</td>
       <td><span class="badge b-${s.badge}">${s.icon} ${s.badgeText}</span></td>
     </tr>`;
-  }).join('');
-  document.getElementById('historyCount').textContent = filtered().length + ' data tersimpan';
-}
+          })
+          .join("");
+        document.getElementById("historyCount").textContent =
+          filtered().length + " data tersimpan";
+      }
 
-function setFilter(f) {
-  activeFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById({ all: 'fAll', ok: 'fOk', warn: 'fWarn', bad: 'fBad' }[f]).classList.add('active');
-  updateChart(); renderLog();
-}
+      function setFilter(f) {
+        activeFilter = f;
+        document
+          .querySelectorAll(".filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        document
+          .getElementById(
+            { all: "fAll", ok: "fOk", warn: "fWarn", bad: "fBad" }[f],
+          )
+          .classList.add("active");
+        updateChart();
+        renderLog();
+      }
 
-// ── UI update ─────────────────────────────────────────────────────────────────
-function updateCards() {
-  const avg = mean5min();
-  if (!avg) return;
-  const s = getStatus(avg.temp, avg.humi);
+      function updateSessionLabel() {
+        document.getElementById("sessionLabel").textContent = currentSessionId
+          ? `Sesi: #${currentSessionId}`
+          : "Sesi: —";
+        const dl = document.getElementById("btnDownload");
+        if (currentSessionId) {
+          dl.href = `/download/session?sessionId=${currentSessionId}`;
+          dl.classList.remove("link-disabled");
+        } else {
+          dl.href = "/download/session";
+          dl.classList.add("link-disabled");
+        }
+      }
 
-  document.getElementById('valTemp').textContent = avg.temp.toFixed(1);
-  document.getElementById('valHumi').textContent = avg.humi.toFixed(1);
+      // ── UI update ─────────────────────────────────────────────────────────────────
+      function updateCards() {
+        if (!allData.length) return;
 
-  // Range bars (temp: 20-34, humi: 30-80)
-  const tPct = Math.min(100, Math.max(0, (avg.temp - 20) / 14 * 100));
-  const hPct = Math.min(100, Math.max(0, (avg.humi - 30) / 50 * 100));
-  const tColor = s.badge === 'ok' ? '#16a34a' : s.badge === 'warn' ? '#d97706' : '#dc2626';
-  document.getElementById('tempBar').style.cssText = `width:${tPct}%;background:${tColor}`;
-  document.getElementById('humiBar').style.cssText = `width:${hPct}%;background:${tColor}`;
+        // Mengambil data teraktual tanpa perhitungan rata-rata
+        const latest = allData[allData.length - 1];
+        const s = getStatus(latest.temp, latest.humi);
 
-  // Status banner
-  const b = document.getElementById('statusBanner');
-  b.className = 'status-banner ' + s.cls;
-  document.getElementById('statusIcon').textContent  = s.icon;
-  document.getElementById('statusTitle').textContent = s.title;
-  document.getElementById('statusDesc').textContent  = s.desc;
+        // Tampilkan nilai mentah (presisi 1 desimal) sama seperti OLED
+        document.getElementById("valTemp").textContent = latest.temp.toFixed(1);
+        document.getElementById("valHumi").textContent = latest.humi.toFixed(1);
 
-  // Last update time
-  const now = new Date();
-  document.getElementById('lastUpdate').textContent = 'Diperbarui ' +
-    now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
+        // Kalkulasi persentase pergerakan bar (suhu 20-35, humi 30-80)
+        const tPct = Math.min(
+          100,
+          Math.max(0, ((latest.temp - 20) / 15) * 100),
+        );
+        const hPct = Math.min(
+          100,
+          Math.max(0, ((latest.humi - 30) / 50) * 100),
+        );
 
-// ── Ingest new data point ─────────────────────────────────────────────────────
-function ingest(temp, humi, timeStr, ts) {
-  allData.push({ temp, humi, time: timeStr || new Date().toLocaleTimeString('id-ID', { hour12: false }), ts: ts || Date.now() });
-  updateCards(); updateChart(); renderLog();
-}
+        const tColor =
+          s.badge === "ok"
+            ? "#16a34a"
+            : s.badge === "warn"
+              ? "#d97706"
+              : "#dc2626";
+        document.getElementById("tempBar").style.cssText =
+          `width:${tPct}%;background:${tColor}`;
+        document.getElementById("humiBar").style.cssText =
+          `width:${hPct}%;background:${tColor}`;
 
-// ── WebSocket ─────────────────────────────────────────────────────────────────
-function connectWs() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}`);
+        // Update Status Banner
+        const b = document.getElementById("statusBanner");
+        b.className = "status-banner " + s.cls;
+        document.getElementById("statusIcon").textContent = s.icon;
+        document.getElementById("statusTitle").textContent = s.title;
+        document.getElementById("statusDesc").textContent = s.desc;
 
-  ws.onopen = () => console.log('WS connected');
-  ws.onclose = () => { setTimeout(connectWs, 3000); };
+        // Waktu pembaruan terakhir
+        const now = new Date();
+        document.getElementById("lastUpdate").textContent =
+          "Diperbarui " +
+          now.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+      }
+      // ── Ingest new data point ─────────────────────────────────────────────────────
+      function ingest(temp, humi, timeStr, ts) {
+        allData.push({
+          temp,
+          humi,
+          time:
+            timeStr ||
+            new Date().toLocaleTimeString("id-ID", { hour12: false }),
+          ts: ts || Date.now(),
+        });
+        updateCards();
+        updateChart();
+        renderLog();
+      }
 
-  ws.onmessage = (e) => {
-    let d;
-    try { d = JSON.parse(e.data); } catch { return; }
+      // ── WebSocket ─────────────────────────────────────────────────────────────────
+      function connectWs() {
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        ws = new WebSocket(`${proto}://${location.host}`);
 
-    if (d.type === 'monitoring') {
-      monitoringEnabled = d.enabled;
-      syncButtons();
-      if (d.espOnline !== undefined) setEspStatus(d.espOnline);
-    }
-    if (d.type === 'esp_status') setEspStatus(d.status === 'online');
-    if (d.type === 'app_status') console.log(d.message);
+        ws.onopen = () => console.log("WS connected");
+        ws.onclose = () => {
+          setTimeout(connectWs, 3000);
+        };
 
-    // Sensor payload
-    const t = d.temp !== undefined ? d.temp : d.temperature !== undefined ? d.temperature : d.t;
-    const h = d.humi !== undefined ? d.humi : d.humidity  !== undefined ? d.humidity  : d.h;
-    if (t != null && h != null) {
-      const ts  = d.waktu ? new Date(d.waktu).getTime() : Date.now();
-      const str = d.waktu
-        ? new Date(d.waktu).toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false })
-        : new Date().toLocaleTimeString('id-ID', { hour12: false });
-      ingest(+t, +h, str, ts);
-    }
-  };
-}
+        ws.onmessage = (e) => {
+          let d;
+          try {
+            d = JSON.parse(e.data);
+          } catch {
+            return;
+          }
 
-function setEspStatus(online) {
-  document.getElementById('espDot').className  = 'esp-dot' + (online ? ' online' : '');
-  document.getElementById('espLabel').textContent = online ? 'Sensor terhubung' : 'Sensor tidak terhubung';
-}
+          if (d.type === "monitoring") {
+            monitoringEnabled = d.enabled;
+            syncButtons();
+            if (d.espOnline !== undefined) setEspStatus(d.espOnline);
+          }
+          if (d.type === "session") {
+            currentSessionId = d.sessionId || null;
+            updateSessionLabel();
+            if (d.active && currentSessionId) {
+              resetData();
+              loadHistory(currentSessionId);
+            }
+          }
+          if (d.type === "esp_status") setEspStatus(d.status === "online");
+          if (d.type === "app_status") console.log(d.message);
 
-// ── Controls ──────────────────────────────────────────────────────────────────
-function syncButtons() {
-  document.getElementById('btnStart').disabled = monitoringEnabled;
-  document.getElementById('btnStop').disabled  = !monitoringEnabled;
-}
+          // Sensor payload
+          const t =
+            d.temp !== undefined
+              ? d.temp
+              : d.temperature !== undefined
+                ? d.temperature
+                : d.t;
+          const h =
+            d.humi !== undefined
+              ? d.humi
+              : d.humidity !== undefined
+                ? d.humidity
+                : d.h;
+          if (t != null && h != null) {
+            const ts = d.waktu ? new Date(d.waktu).getTime() : Date.now();
+            const str = d.waktu
+              ? new Date(d.waktu).toLocaleString("id-ID", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: false,
+                })
+              : new Date().toLocaleTimeString("id-ID", { hour12: false });
+            ingest(+t, +h, str, ts);
+          }
+        };
+      }
 
-async function startMonitoring() {
-  await fetch('/api/control/start', { method: 'POST' });
-  monitoringEnabled = true; syncButtons();
-}
-async function stopMonitoring() {
-  await fetch('/api/control/stop', { method: 'POST' });
-  monitoringEnabled = false; syncButtons();
-}
+      function setEspStatus(online) {
+        document.getElementById("espDot").className =
+          "esp-dot" + (online ? " online" : "");
+        document.getElementById("espLabel").textContent = online
+          ? "Sensor terhubung"
+          : "Sensor tidak terhubung";
+      }
 
-// ── Bootstrap: load history then connect WS ───────────────────────────────────
-async function bootstrap() {
-  try {
-    const r = await fetch('/api/history?limit=500');
-    const rows = await r.json();
-    rows.forEach(row => {
-      const ts  = row.time ? new Date(row.time).getTime() : Date.now();
-      const str = row.time
-        ? new Date(row.time).toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false })
-        : '—';
-      allData.push({ temp: +row.temp, humi: +row.humi, time: str, ts });
-    });
-    if (allData.length) { updateCards(); updateChart(); renderLog(); }
-  } catch(e) { console.warn('History load failed', e); }
+      // ── Controls ──────────────────────────────────────────────────────────────────
+      function syncButtons() {
+        document.getElementById("btnStart").disabled = monitoringEnabled;
+        document.getElementById("btnStop").disabled = !monitoringEnabled;
+      }
 
-  try {
-    const s = await fetch('/api/control/status');
-    const d = await s.json();
-    monitoringEnabled = d.monitoringEnabled;
-    setEspStatus(d.espOnline);
-    syncButtons();
-  } catch {}
+      function resetData() {
+        allData.length = 0;
+        updateChart();
+        renderLog();
+      }
 
-  connectWs();
-}
+      async function startMonitoring() {
+        const r = await fetch("/api/control/start", { method: "POST" });
+        const d = await r.json();
+        monitoringEnabled = true;
+        currentSessionId = d.sessionId || null;
+        updateSessionLabel();
+        resetData();
+        if (currentSessionId) await loadHistory(currentSessionId);
+        syncButtons();
+      }
+      async function stopMonitoring() {
+        const r = await fetch("/api/control/stop", { method: "POST" });
+        const d = await r.json();
+        monitoringEnabled = false;
+        currentSessionId = d.sessionId || currentSessionId;
+        updateSessionLabel();
+        syncButtons();
+      }
 
-bootstrap();
-</script>
-</body>
+      async function loadHistory(sessionId) {
+        try {
+          const r = await fetch(
+            `/api/history?limit=500&sessionId=${sessionId}`,
+          );
+          const rows = await r.json();
+          rows.forEach((row) => {
+            const ts = row.time ? new Date(row.time).getTime() : Date.now();
+            const str = row.time
+              ? new Date(row.time).toLocaleString("id-ID", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: false,
+                })
+              : "—";
+            allData.push({ temp: +row.temp, humi: +row.humi, time: str, ts });
+          });
+          if (allData.length) {
+            updateCards();
+            updateChart();
+            renderLog();
+          }
+        } catch (e) {
+          console.warn("History load failed", e);
+        }
+      }
+
+      // ── Bootstrap: load history then connect WS ───────────────────────────────────
+      async function bootstrap() {
+        try {
+          const s = await fetch("/api/control/status");
+          const d = await s.json();
+          monitoringEnabled = d.monitoringEnabled;
+          setEspStatus(d.espOnline);
+          currentSessionId = d.currentSessionId || null;
+          updateSessionLabel();
+          syncButtons();
+        } catch {}
+
+        if (currentSessionId) {
+          await loadHistory(currentSessionId);
+        }
+
+        connectWs();
+      }
+
+      bootstrap();
+    </script>
+  </body>
 </html>

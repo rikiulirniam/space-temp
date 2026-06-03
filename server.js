@@ -54,6 +54,19 @@ db.serialize(() => {
   db.run(
     `INSERT OR IGNORE INTO app_settings (key,value) VALUES ('monitoring_enabled','0')`,
   );
+  db.run(
+    `INSERT OR IGNORE INTO app_settings (key,value) VALUES ('current_session_id','')`,
+  );
+  db.run(`CREATE TABLE IF NOT EXISTS monitoring_sessions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_time DATETIME DEFAULT (datetime('now','localtime')),
+    end_time   DATETIME
+  )`);
+  db.run(`ALTER TABLE sensor_data ADD COLUMN session_id INTEGER`, (err) => {
+    if (err && !String(err.message || "").includes("duplicate column")) {
+      console.error("❌ Failed adding session_id column:", err.message);
+    }
+  });
   db.run(`CREATE TABLE IF NOT EXISTS presence_events (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     status    TEXT NOT NULL CHECK(status IN ('occupied','empty')),
@@ -84,6 +97,42 @@ db.serialize(() => {
   );
   db.run(`UPDATE app_settings SET value='0' WHERE key='monitoring_enabled'`);
 });
+
+const getCurrentSessionId = (cb) =>
+  db.get(
+    `SELECT value FROM app_settings WHERE key='current_session_id'`,
+    (err, row) => {
+      const raw = row ? String(row.value || "") : "";
+      const id = raw && raw.trim() !== "" ? Number(raw) : null;
+      cb(err, Number.isFinite(id) ? id : null);
+    },
+  );
+
+const setCurrentSessionId = (sessionId, cb) =>
+  db.run(
+    `UPDATE app_settings SET value=?,updated_at=datetime('now','localtime') WHERE key='current_session_id'`,
+    [sessionId ? String(sessionId) : ""],
+    (err) => cb && cb(err),
+  );
+
+const createSession = (cb) => {
+  db.run(
+    `INSERT INTO monitoring_sessions (start_time) VALUES (datetime('now','localtime'))`,
+    function (err) {
+      if (err) return cb(err);
+      cb(null, this.lastID);
+    },
+  );
+};
+
+const closeSession = (sessionId, cb) => {
+  if (!sessionId) return cb && cb();
+  db.run(
+    `UPDATE monitoring_sessions SET end_time=datetime('now','localtime') WHERE id=?`,
+    [sessionId],
+    (err) => cb && cb(err),
+  );
+};
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const sendJson = (res, code, payload) => {
@@ -155,28 +204,32 @@ const handleEspPayload = (d) => {
 
   getMonitoring((err, enabled) => {
     if (err || !enabled) return;
-    getCurrentPresence((presenceErr, presenceStatus) => {
-      if (presenceErr) return;
-      db.run(
-        "INSERT INTO sensor_data (waktu,suhu,kelembapan,presence_status) VALUES (?,?,?,?)",
-        [wibNow(), t, h, presenceStatus || "empty"],
-        function (insertErr) {
-          if (insertErr) return;
-          // Ambil waktu dari row yang baru saja diinsert
-          db.get(
-            "SELECT waktu FROM sensor_data WHERE id = ?",
-            [this.lastID],
-            (selErr, row) => {
-              broadcast({
-                temp: t,
-                humi: h,
-                presenceStatus: presenceStatus || "empty",
-                waktu: row ? row.waktu : null,
-              });
-            },
-          );
-        },
-      );
+    getCurrentSessionId((sessionErr, sessionId) => {
+      if (sessionErr || !sessionId) return;
+      getCurrentPresence((presenceErr, presenceStatus) => {
+        if (presenceErr) return;
+        db.run(
+          "INSERT INTO sensor_data (waktu,suhu,kelembapan,presence_status,session_id) VALUES (?,?,?,?,?)",
+          [wibNow(), t, h, presenceStatus || "empty", sessionId],
+          function (insertErr) {
+            if (insertErr) return;
+            // Ambil waktu dari row yang baru saja diinsert
+            db.get(
+              "SELECT waktu FROM sensor_data WHERE id = ?",
+              [this.lastID],
+              (selErr, row) => {
+                broadcast({
+                  temp: t,
+                  humi: h,
+                  presenceStatus: presenceStatus || "empty",
+                  waktu: row ? row.waktu : null,
+                  sessionId,
+                });
+              },
+            );
+          },
+        );
+      });
     });
   });
 };
@@ -326,23 +379,36 @@ const server = http.createServer((req, res) => {
 
   // Last 50 history rows
   if (method === "GET" && pathname === "/api/history") {
-    return db.all(
-      `SELECT
-         suhu as temp,
-         kelembapan as humi,
-         waktu as time,
-         COALESCE(presence_status, 'empty') as presenceStatus
-       FROM sensor_data
-       ORDER BY id DESC
-       LIMIT ?`,
-      [historyLimit],
-      (err, rows) =>
-        sendJson(
-          res,
-          err ? 500 : 200,
-          err ? { error: err.message } : (rows || []).reverse(),
-        ),
-    );
+    const rawSession = reqUrl.searchParams.get("sessionId");
+    const sessionId = rawSession ? Number(rawSession) : null;
+    return getCurrentSessionId((sessErr, currentSessionId) => {
+      if (sessErr) return sendJson(res, 500, { error: sessErr.message });
+      const useSessionId = Number.isFinite(sessionId)
+        ? sessionId
+        : currentSessionId;
+      const whereSql = useSessionId ? "WHERE session_id = ?" : "";
+      const params = useSessionId
+        ? [useSessionId, historyLimit]
+        : [historyLimit];
+      db.all(
+        `SELECT
+           suhu as temp,
+           kelembapan as humi,
+           waktu as time,
+           COALESCE(presence_status, 'empty') as presenceStatus
+         FROM sensor_data
+         ${whereSql}
+         ORDER BY id DESC
+         LIMIT ?`,
+        params,
+        (err, rows) =>
+          sendJson(
+            res,
+            err ? 500 : 200,
+            err ? { error: err.message } : (rows || []).reverse(),
+          ),
+      );
+    });
   }
 
   // Monitoring status
@@ -352,13 +418,28 @@ const server = http.createServer((req, res) => {
       getCurrentPresence((presenceErr, presenceStatus) => {
         if (presenceErr)
           return sendJson(res, 500, { error: presenceErr.message });
-        sendJson(res, 200, {
-          monitoringEnabled: enabled,
-          espOnline: !!espSocket,
-          presenceStatus,
+        getCurrentSessionId((sessionErr, sessionId) => {
+          if (sessionErr)
+            return sendJson(res, 500, { error: sessionErr.message });
+          sendJson(res, 200, {
+            monitoringEnabled: enabled,
+            espOnline: !!espSocket,
+            presenceStatus,
+            currentSessionId: sessionId,
+          });
         });
       });
     });
+  }
+
+  if (method === "GET" && pathname === "/api/session/current") {
+    return getCurrentSessionId((err, sessionId) =>
+      sendJson(
+        res,
+        err ? 500 : 200,
+        err ? { error: err.message } : { sessionId },
+      ),
+    );
   }
 
   if (method === "GET" && pathname === "/api/presence/status") {
@@ -392,24 +473,46 @@ const server = http.createServer((req, res) => {
   if (method === "POST") {
     // Start: enable monitoring + tell ESP to start sending data
     if (pathname === "/api/control/start") {
-      return setMonitoring(true, (err) => {
-        if (err) return sendJson(res, 500, { error: err.message });
-        sendToEsp({ type: "start" });
-        broadcast({
-          type: "app_status",
-          message: "Monitoring started, ESP is sending data...",
+      return createSession((createErr, sessionId) => {
+        if (createErr) return sendJson(res, 500, { error: createErr.message });
+        setCurrentSessionId(sessionId, (setErr) => {
+          if (setErr) return sendJson(res, 500, { error: setErr.message });
+          setMonitoring(true, (err) => {
+            if (err) return sendJson(res, 500, { error: err.message });
+            sendToEsp({ type: "start" });
+            broadcast({
+              type: "app_status",
+              message: "Monitoring started, ESP is sending data...",
+            });
+            broadcast({ type: "session", sessionId, active: true });
+            sendJson(res, 200, {
+              ok: true,
+              monitoringEnabled: true,
+              sessionId,
+            });
+          });
         });
-        sendJson(res, 200, { ok: true, monitoringEnabled: true });
       });
     }
 
     // Stop: disable monitoring + tell ESP to stop sending data
     if (pathname === "/api/control/stop") {
-      return setMonitoring(false, (err) => {
-        if (err) return sendJson(res, 500, { error: err.message });
-        sendToEsp({ type: "stop" });
-        broadcast({ type: "app_status", message: "Monitoring stopped." });
-        sendJson(res, 200, { ok: true, monitoringEnabled: false });
+      return getCurrentSessionId((sessionErr, sessionId) => {
+        if (sessionErr)
+          return sendJson(res, 500, { error: sessionErr.message });
+        closeSession(sessionId, () => {
+          setMonitoring(false, (err) => {
+            if (err) return sendJson(res, 500, { error: err.message });
+            sendToEsp({ type: "stop" });
+            broadcast({ type: "app_status", message: "Monitoring stopped." });
+            broadcast({ type: "session", sessionId, active: false });
+            sendJson(res, 200, {
+              ok: true,
+              monitoringEnabled: false,
+              sessionId,
+            });
+          });
+        });
       });
     }
 
@@ -471,6 +574,44 @@ const server = http.createServer((req, res) => {
         res.end(csv);
       },
     );
+  }
+
+  // Download CSV for a specific monitoring session
+  if (method === "GET" && pathname === "/download/session") {
+    const rawSession = reqUrl.searchParams.get("sessionId");
+    const sessionId = rawSession ? Number(rawSession) : null;
+    return getCurrentSessionId((sessErr, currentSessionId) => {
+      if (sessErr) {
+        res.writeHead(500);
+        return res.end("Failed");
+      }
+      const useSessionId = Number.isFinite(sessionId)
+        ? sessionId
+        : currentSessionId;
+      if (!useSessionId) {
+        res.writeHead(400);
+        return res.end("Missing sessionId");
+      }
+      db.all(
+        "SELECT * FROM sensor_data WHERE session_id = ? ORDER BY waktu DESC",
+        [useSessionId],
+        (err, rows) => {
+          if (err) {
+            res.writeHead(500);
+            return res.end("Failed");
+          }
+          let csv = "ID,Time,Temperature,Humidity,SessionID\n";
+          (rows || []).forEach((r) => {
+            csv += `${r.id},${r.waktu},${r.suhu},${r.kelembapan},${r.session_id}\n`;
+          });
+          res.writeHead(200, {
+            "Content-Type": "text/csv",
+            "Content-Disposition": `attachment; filename=session_${useSessionId}.csv`,
+          });
+          res.end(csv);
+        },
+      );
+    });
   }
 
   // Download CSV for presence analysis (time,temp,humi,presence_status)
@@ -639,7 +780,9 @@ function startServer(port) {
 
 server.on("error", (err) => {
   if (err && err.code === "EADDRINUSE") {
-    console.warn(`Port ${currentPort} already in use, trying ${currentPort + 1}...`);
+    console.warn(
+      `Port ${currentPort} already in use, trying ${currentPort + 1}...`,
+    );
     setTimeout(() => startServer(currentPort + 1), 200);
     return;
   }
