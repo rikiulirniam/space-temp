@@ -10,6 +10,10 @@ const sqlite3 = require("sqlite3").verbose();
 const PORT = 8080;
 const INDEX_FILE = path.join(__dirname, "index.html");
 const DB_FILE = path.join(__dirname, "monitoring.db");
+const STATIC_FILES = new Map([
+  ["/style.css", "text/css; charset=utf-8"],
+  ["/app.js", "text/javascript; charset=utf-8"],
+]);
 
 /**
  * Mengembalikan waktu sekarang dalam format SQLite "YYYY-MM-DD HH:MM:SS"
@@ -377,6 +381,19 @@ const server = http.createServer((req, res) => {
     });
   }
 
+  if (method === "GET" && STATIC_FILES.has(pathname)) {
+    const contentType = STATIC_FILES.get(pathname);
+    const filePath = path.join(__dirname, pathname);
+    return fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        return res.end("Not found");
+      }
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end(data);
+    });
+  }
+
   // Last 50 history rows
   if (method === "GET" && pathname === "/api/history") {
     const rawSession = reqUrl.searchParams.get("sessionId");
@@ -408,6 +425,60 @@ const server = http.createServer((req, res) => {
             err ? { error: err.message } : (rows || []).reverse(),
           ),
       );
+    });
+  }
+
+  if (method === "GET" && pathname === "/api/sessions") {
+    return db.all(
+      `SELECT
+         id,
+         start_time as startTime,
+         end_time as endTime
+       FROM monitoring_sessions
+       ORDER BY id DESC`,
+      (err, rows) =>
+        sendJson(
+          res,
+          err ? 500 : 200,
+          err ? { error: err.message } : rows || [],
+        ),
+    );
+  }
+
+  if (method === "DELETE" && pathname.startsWith("/api/sessions/")) {
+    const rawId = pathname.split("/").pop();
+    const sessionId = Number(rawId);
+    if (!Number.isFinite(sessionId)) {
+      return sendJson(res, 400, { error: "Invalid session id" });
+    }
+    return getCurrentSessionId((sessErr, currentSessionId) => {
+      if (sessErr) return sendJson(res, 500, { error: sessErr.message });
+      getMonitoring((monErr, enabled) => {
+        if (monErr) return sendJson(res, 500, { error: monErr.message });
+        if (enabled && currentSessionId === sessionId) {
+          return sendJson(res, 409, {
+            error: "Cannot delete active monitoring session",
+          });
+        }
+
+        db.serialize(() => {
+          db.run("DELETE FROM sensor_data WHERE session_id = ?", [sessionId]);
+          db.run(
+            "DELETE FROM monitoring_sessions WHERE id = ?",
+            [sessionId],
+            (delErr) => {
+              if (delErr) {
+                return sendJson(res, 500, { error: delErr.message });
+              }
+              if (currentSessionId === sessionId) {
+                setCurrentSessionId("", () => sendJson(res, 200, { ok: true }));
+                return;
+              }
+              sendJson(res, 200, { ok: true });
+            },
+          );
+        });
+      });
     });
   }
 
