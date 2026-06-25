@@ -23,41 +23,32 @@ jobs:
       - name: Setup SSH Configuration
         run: |
           mkdir -p ~/.ssh
-          # Masukkan private key dari github secrets ke file lokal runner
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           
-          # Daftarkan konfigurasi proxy sakti agar host khusus dikirim via cloudflared
+          # Tambahkan "AddressFamily inet" untuk memaksa penggunaan jaringan IPv4
           cat <<EOF > ~/.ssh/config
           Host ssh-deploy.rikiulir.site
               IdentityFile ~/.ssh/id_ed25519
               ProxyCommand cloudflared access ssh --hostname %h
               StrictHostKeyChecking no
+              AddressFamily inet
           EOF
 
-      # 3. Eksekusi perintah deployment menggunakan native SSH Linux
+      # 3. Eksekusi perintah deployment menggunakan native SSH Linux (Paksa IPv4 dengan flag -4)
       - name: Execute Remote Deployment Commands
         run: |
-          ssh ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
+          ssh -4 ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
             cd /var/www/html/tempdetection
-            
-            # Tarik pembaruan kode terbaru
             git pull origin main
-            
-            # --- Pembaruan Lingkungan Node.js ---
             npm install --production
             
-            # --- Pembaruan Lingkungan Python (ML Engine) ---
-            # Asumsi Anda menggunakan virtual environment (venv) di folder tersebut
-            # Hapus baris 'source' jika Anda menginstal dependensi Python secara global
-            source venv/bin/activate
-            pip install -r requirements.txt
-            deactivate
+            # Eksekusi python jika menggunakan virtual environment
+            # source venv/bin/activate
+            # pip install -r requirements.txt
+            # deactivate
             
-            # --- Manajemen Database & Restart Services ---
             chmod 664 monitoring.db
-            
-            # Restart kedua proses PM2 (sesuaikan nama sesuai konfigurasi pm2 Anda)
             pm2 restart temp-detection-api
             pm2 restart ml-engine
           EOF
