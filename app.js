@@ -506,11 +506,122 @@ async function bootstrap() {
   connectWs();
 }
 
+let mlDbscanChart = null;
+let mlRfChart = null;
+let mlXgbChart = null;
+
+async function analyzeSession() {
+  const sessionId = selectedSessionId || currentSessionId;
+  if (!sessionId) {
+    alert("Silakan pilih sesi terlebih dahulu.");
+    return;
+  }
+  
+  const btn = document.getElementById("btnAnalyze");
+  btn.disabled = true;
+  btn.textContent = "⏳ Menganalisis...";
+  
+  try {
+    const res = await fetch(`/api/session/${sessionId}/analyze`);
+    const data = await res.json();
+    
+    if (!res.ok) {
+      throw new Error(data.error || data.detail || "Gagal menganalisis sesi");
+    }
+    
+    document.getElementById("mlAnalysisSection").style.display = "block";
+    renderMlCharts(data);
+    
+  } catch (err) {
+    alert("Error: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🧠 Analisis Sesi";
+  }
+}
+
+function renderMlCharts(data) {
+  if (mlDbscanChart) mlDbscanChart.destroy();
+  if (mlRfChart) mlRfChart.destroy();
+  if (mlXgbChart) mlXgbChart.destroy();
+
+  const dbscanData = data.dbscan || [];
+  const normalPoints = dbscanData.filter(d => !d.anomaly).map(d => ({ x: d.x, y: d.y }));
+  const anomalyPoints = dbscanData.filter(d => d.anomaly).map(d => ({ x: d.x, y: d.y }));
+  
+  mlDbscanChart = new Chart(document.getElementById("mlDbscanChart"), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Normal', data: normalPoints, backgroundColor: '#0369a1' },
+        { label: 'Anomali', data: anomalyPoints, backgroundColor: '#dc2626', pointRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'Suhu (°C)' } },
+        y: { title: { display: true, text: 'Kelembapan (%)' } }
+      }
+    }
+  });
+
+  const rfData = data.random_forest || {};
+  const rfLabels = Object.keys(rfData);
+  const rfValues = Object.values(rfData);
+  
+  mlRfChart = new Chart(document.getElementById("mlRfChart"), {
+    type: 'doughnut',
+    data: {
+      labels: rfLabels,
+      datasets: [{
+        data: rfValues,
+        backgroundColor: ['#16a34a', '#eab308', '#ef4444', '#3b82f6'],
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw.toFixed(1)}%` } }
+      }
+    }
+  });
+
+  const xgbData = data.xgboost || { waktu: [], aktual: [], prediksi: [] };
+  const labels = xgbData.waktu.map(t => {
+     const parts = t.split(" ");
+     return parts.length > 1 ? parts[1].substring(0, 5) : t.substring(0,5);
+  });
+
+  mlXgbChart = new Chart(document.getElementById("mlXgbChart"), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Suhu Aktual', data: xgbData.aktual, borderColor: '#94a3b8', borderWidth: 2, fill: false, pointRadius: 0, tension: 0.1 },
+        { label: 'Trend XGBoost', data: xgbData.prediksi, borderColor: '#c2410c', borderWidth: 3, fill: false, pointRadius: 0, tension: 0.4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y: { title: { display: true, text: 'Suhu (°C)' } },
+        x: { ticks: { maxTicksLimit: 10 } }
+      }
+    }
+  });
+}
+
 function bindControls() {
   document
     .getElementById("btnStart")
     .addEventListener("click", startMonitoring);
   document.getElementById("btnStop").addEventListener("click", stopMonitoring);
+  document.getElementById("btnAnalyze").addEventListener("click", analyzeSession);
   document
     .getElementById("fAll")
     .addEventListener("click", () => setFilter("all"));

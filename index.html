@@ -55,11 +55,12 @@
         <button class="btn btn-start" id="btnStart">▶ Mulai Monitoring</button>
         <button class="btn btn-stop" id="btnStop">⏹ Hentikan</button>
         <div class="session-pill" id="sessionLabel">Sesi: —</div>
+        <button class="btn" id="btnAnalyze" style="margin-left: auto; background-color: #6366f1; color: white;">🧠 Analisis Sesi</button>
         <a
           href="/download/session"
           id="btnDownload"
           class="btn btn-dl"
-          style="text-decoration: none; margin-left: auto"
+          style="text-decoration: none; margin-left: 10px"
           >⬇ Unduh CSV Sesi</a
         >
       </div>
@@ -131,6 +132,32 @@
           </div>
         </div>
         <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+
+      <!-- ML ANALYSIS CHARTS -->
+      <div class="section" id="mlAnalysisSection" style="display: none;">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Analisis Sesi Cerdas (Machine Learning)</div>
+            <div class="section-sub" id="mlAnalysisSub">
+              Menampilkan hasil DBSCAN, Random Forest, dan XGBoost
+            </div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div>
+            <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--text);">DBSCAN (Deteksi Anomali)</h4>
+            <div class="chart-wrap" style="height: 250px;"><canvas id="mlDbscanChart"></canvas></div>
+          </div>
+          <div>
+            <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--text);">Random Forest (Distribusi Status)</h4>
+            <div class="chart-wrap" style="height: 250px;"><canvas id="mlRfChart"></canvas></div>
+          </div>
+        </div>
+        <div style="margin-top: 20px;">
+          <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--text);">XGBoost (Smoothing Trend Suhu)</h4>
+          <div class="chart-wrap" style="height: 250px;"><canvas id="mlXgbChart"></canvas></div>
+        </div>
       </div>
 
       <!-- HISTORY TABLE -->

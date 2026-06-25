@@ -526,6 +526,31 @@ const server = http.createServer((req, res) => {
     );
   }
 
+  if (method === "GET" && pathname.startsWith("/api/session/") && pathname.endsWith("/analyze")) {
+    const parts = pathname.split("/");
+    const sessionId = Number(parts[3]);
+    if (!Number.isFinite(sessionId)) {
+      return sendJson(res, 400, { error: "Invalid session id" });
+    }
+    
+    // Proxy request ke microservice Python
+    const pythonUrl = `http://127.0.0.1:5000/api/analyze?session_id=${sessionId}`;
+    return http.get(pythonUrl, (pythonRes) => {
+      let data = '';
+      pythonRes.on('data', chunk => data += chunk);
+      pythonRes.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          sendJson(res, pythonRes.statusCode, parsed);
+        } catch (e) {
+          sendJson(res, 500, { error: "Failed to parse Python response" });
+        }
+      });
+    }).on('error', (err) => {
+      sendJson(res, 500, { error: "Failed to connect to Python ML service: " + err.message });
+    });
+  }
+
   // Total count untuk card Packets
   if (method === "GET" && pathname === "/api/stats") {
     return db.get(

@@ -40,8 +40,24 @@ jobs:
         run: |
           ssh ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
             cd /var/www/html/tempdetection
+            
+            # Tarik pembaruan kode terbaru
             git pull origin main
+            
+            # --- Pembaruan Lingkungan Node.js ---
             npm install --production
+            
+            # --- Pembaruan Lingkungan Python (ML Engine) ---
+            # Asumsi Anda menggunakan virtual environment (venv) di folder tersebut
+            # Hapus baris 'source' jika Anda menginstal dependensi Python secara global
+            source venv/bin/activate
+            pip install -r requirements.txt
+            deactivate
+            
+            # --- Manajemen Database & Restart Services ---
             chmod 664 monitoring.db
+            
+            # Restart kedua proses PM2 (sesuaikan nama sesuai konfigurasi pm2 Anda)
             pm2 restart temp-detection-api
+            pm2 restart ml-engine
           EOF
