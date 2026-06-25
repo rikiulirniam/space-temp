@@ -26,24 +26,29 @@ jobs:
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           
-          # Tambahkan "AddressFamily inet" untuk memaksa penggunaan jaringan IPv4
           cat <<EOF > ~/.ssh/config
           Host ssh-deploy.rikiulir.site
               IdentityFile ~/.ssh/id_ed25519
               ProxyCommand cloudflared access ssh --hostname %h
               StrictHostKeyChecking no
-              AddressFamily inet
           EOF
 
-      # 3. Eksekusi perintah deployment menggunakan native SSH Linux (Paksa IPv4 dengan flag -4)
+      # --- TAMBAHKAN STEP INI ---
+      # 3. Matikan IPv6 pada OS Ubuntu Runner agar cloudflared terpaksa menggunakan IPv4
+      - name: Disable IPv6 on GitHub Runner
+        run: |
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
+          sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=1
+
+      # 4. Eksekusi perintah deployment
       - name: Execute Remote Deployment Commands
         run: |
-          ssh -4 ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
+          ssh ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
             cd /var/www/html/tempdetection
             git pull origin main
             npm install --production
             
-            # Eksekusi python jika menggunakan virtual environment
             # source venv/bin/activate
             # pip install -r requirements.txt
             # deactivate
