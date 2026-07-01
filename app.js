@@ -180,6 +180,7 @@ function updateSessionLabel() {
     dl.href = "/download/session";
     dl.classList.add("link-disabled");
   }
+  // presence buttons remain enabled; user can choose session when needed
 }
 
 function formatSessionTime(raw) {
@@ -707,23 +708,43 @@ bindControls();
 bootstrap();
 
 async function applyPresenceToSession(sessionId, status) {
-  if (!sessionId) return;
-  if (
-    !confirm(`Terapkan status '${status}' ke seluruh data sesi #${sessionId}?`)
-  )
+  let sid = sessionId;
+  if (!sid) {
+    const input = prompt(
+      "Masukkan session id (kosong = gunakan session aktif):",
+      currentSessionId || "",
+    );
+    if (input === null) return; // user cancelled
+    if (String(input).trim() === "") {
+      sid = currentSessionId;
+    } else {
+      const parsed = Number(input);
+      if (!Number.isFinite(parsed)) {
+        alert("Session id tidak valid");
+        return;
+      }
+      sid = parsed;
+    }
+  }
+  if (!sid) {
+    alert("Tidak ada session yang dipilih atau aktif.");
+    return;
+  }
+
+  if (!confirm(`Terapkan status '${status}' ke seluruh data sesi #${sid}?`))
     return;
   try {
-    const r = await fetch(`/api/sessions/${sessionId}/presence`, {
+    const r = await fetch(`/api/sessions/${sid}/presence`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || "Gagal menerapkan status");
-    alert(`Berhasil: semua data sesi #${sessionId} diberi status ${status}`);
+    alert(`Berhasil: semua data sesi #${sid} diberi status ${status}`);
     // reload history for the selected session
     resetData();
-    await loadHistory(sessionId);
+    await loadHistory(sid);
     refreshSessions();
   } catch (e) {
     alert("Error: " + e.message);
