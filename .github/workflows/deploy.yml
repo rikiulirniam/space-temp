@@ -13,13 +13,11 @@ jobs:
       - name: Checkout Repository Code
         uses: actions/checkout@v4
 
-      # 1. Install cloudflared di runner GitHub untuk menembus terowongan Cloudflare
       - name: Install Cloudflare Client
         run: |
           curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-      # 2. Setup SSH Key dan konfigurasi ProxyCommand di dalam runner
       - name: Setup SSH Configuration
         run: |
           mkdir -p ~/.ssh
@@ -33,15 +31,12 @@ jobs:
               StrictHostKeyChecking no
           EOF
 
-      # --- TAMBAHKAN STEP INI ---
-      # 3. Matikan IPv6 pada OS Ubuntu Runner agar cloudflared terpaksa menggunakan IPv4
       - name: Disable IPv6 on GitHub Runner
         run: |
           sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
           sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
           sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=1
 
-      # 4. Eksekusi perintah deployment
       - name: Execute Remote Deployment Commands
         run: |
           ssh ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
@@ -54,6 +49,8 @@ jobs:
             # deactivate
             
             chmod 664 monitoring.db
-            pm2 restart temp-detection-api
-            pm2 restart ml-engine
+            
+            # Revisi penanganan error PM2
+            pm2 restart temp-detection-api || pm2 start index.js --name temp-detection-api
+            pm2 restart ml-engine || pm2 start main.py --name ml-engine --interpreter python3
           EOF
