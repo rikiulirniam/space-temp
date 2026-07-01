@@ -534,7 +534,7 @@ const server = http.createServer((req, res) => {
     }
     
     // Proxy request ke microservice Python
-    const pythonUrl = `http://127.0.0.1:5000/api/analyze?session_id=${sessionId}`;
+    const pythonUrl = `http://127.0.0.1:5001/api/analyze?session_id=${sessionId}`;
     return http.get(pythonUrl, (pythonRes) => {
       let data = '';
       pythonRes.on('data', chunk => data += chunk);
