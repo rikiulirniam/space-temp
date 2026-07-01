@@ -23,7 +23,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          
+
           cat <<EOF > ~/.ssh/config
           Host ssh-deploy.rikiulir.site
               IdentityFile ~/.ssh/id_ed25519
@@ -40,17 +40,31 @@ jobs:
       - name: Execute Remote Deployment Commands
         run: |
           ssh ${{ secrets.SERVER_USER }}@ssh-deploy.rikiulir.site << 'EOF'
+            set -e
             cd /var/www/html/tempdetection
             git pull origin main
-            npm install --production
-            
-            # source venv/bin/activate
-            # pip install -r requirements.txt
-            # deactivate
-            
-            chmod 664 monitoring.db
-            
-            # Revisi penanganan error PM2
+
+            # Install node deps only if project has package.json (keep existing node app working)
+            if [ -f package.json ]; then
+              npm install --production
+            fi
+
+            # Setup Python virtualenv and install requirements
+            if [ -f requirements.txt ]; then
+              if [ ! -d venv ]; then
+                python3 -m venv venv
+              fi
+              # Use pip from the venv to install deps
+              venv/bin/pip install --upgrade pip
+              venv/bin/pip install -r requirements.txt
+            fi
+
+            # Ensure DB permissions
+            if [ -f monitoring.db ]; then
+              chmod 664 monitoring.db || true
+            fi
+
+            # PM2: restart or start services. Use venv python for the Python process.
             pm2 restart temp-detection-api || pm2 start index.js --name temp-detection-api
-            pm2 restart ml-engine || pm2 start main.py --name ml-engine --interpreter python3
+            pm2 restart ml-engine || pm2 start main.py --name ml-engine --interpreter $(pwd)/venv/bin/python
           EOF
