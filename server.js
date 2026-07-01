@@ -526,29 +526,37 @@ const server = http.createServer((req, res) => {
     );
   }
 
-  if (method === "GET" && pathname.startsWith("/api/session/") && pathname.endsWith("/analyze")) {
+  if (
+    method === "GET" &&
+    pathname.startsWith("/api/session/") &&
+    pathname.endsWith("/analyze")
+  ) {
     const parts = pathname.split("/");
     const sessionId = Number(parts[3]);
     if (!Number.isFinite(sessionId)) {
       return sendJson(res, 400, { error: "Invalid session id" });
     }
-    
+
     // Proxy request ke microservice Python
     const pythonUrl = `http://127.0.0.1:5001/api/analyze?session_id=${sessionId}`;
-    return http.get(pythonUrl, (pythonRes) => {
-      let data = '';
-      pythonRes.on('data', chunk => data += chunk);
-      pythonRes.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          sendJson(res, pythonRes.statusCode, parsed);
-        } catch (e) {
-          sendJson(res, 500, { error: "Failed to parse Python response" });
-        }
+    return http
+      .get(pythonUrl, (pythonRes) => {
+        let data = "";
+        pythonRes.on("data", (chunk) => (data += chunk));
+        pythonRes.on("end", () => {
+          try {
+            const parsed = JSON.parse(data);
+            sendJson(res, pythonRes.statusCode, parsed);
+          } catch (e) {
+            sendJson(res, 500, { error: "Failed to parse Python response" });
+          }
+        });
+      })
+      .on("error", (err) => {
+        sendJson(res, 500, {
+          error: "Failed to connect to Python ML service: " + err.message,
+        });
       });
-    }).on('error', (err) => {
-      sendJson(res, 500, { error: "Failed to connect to Python ML service: " + err.message });
-    });
   }
 
   // Total count untuk card Packets
@@ -653,15 +661,33 @@ const server = http.createServer((req, res) => {
   // Download CSV
   if (method === "GET" && pathname === "/download") {
     return db.all(
-      "SELECT * FROM sensor_data ORDER BY waktu DESC",
+      `SELECT
+         s.id,
+         s.waktu,
+         s.suhu,
+         s.kelembapan,
+         s.session_id,
+         COALESCE(
+           s.presence_status,
+           (
+             SELECT p.status
+             FROM presence_events p
+             WHERE p.waktu <= s.waktu
+             ORDER BY p.waktu DESC, p.id DESC
+             LIMIT 1
+           ),
+           'empty'
+         ) AS presence_status
+       FROM sensor_data s
+       ORDER BY s.waktu DESC`,
       (err, rows) => {
         if (err) {
           res.writeHead(500);
           return res.end("Failed");
         }
-        let csv = "ID,Time,Temperature,Humidity\n";
+        let csv = "ID,Time,Temperature,Humidity,PresenceStatus,SessionID\n";
         (rows || []).forEach((r) => {
-          csv += `${r.id},${r.waktu},${r.suhu},${r.kelembapan}\n`;
+          csv += `${r.id},${r.waktu},${r.suhu},${r.kelembapan},${r.presence_status},${r.session_id}\n`;
         });
         res.writeHead(200, {
           "Content-Type": "text/csv",
@@ -689,16 +715,35 @@ const server = http.createServer((req, res) => {
         return res.end("Missing sessionId");
       }
       db.all(
-        "SELECT * FROM sensor_data WHERE session_id = ? ORDER BY waktu DESC",
+        `SELECT
+           s.id,
+           s.waktu,
+           s.suhu,
+           s.kelembapan,
+           s.session_id,
+           COALESCE(
+             s.presence_status,
+             (
+               SELECT p.status
+               FROM presence_events p
+               WHERE p.waktu <= s.waktu
+               ORDER BY p.waktu DESC, p.id DESC
+               LIMIT 1
+             ),
+             'empty'
+           ) AS presence_status
+         FROM sensor_data s
+         WHERE s.session_id = ?
+         ORDER BY s.waktu DESC`,
         [useSessionId],
         (err, rows) => {
           if (err) {
             res.writeHead(500);
             return res.end("Failed");
           }
-          let csv = "ID,Time,Temperature,Humidity,SessionID\n";
+          let csv = "ID,Time,Temperature,Humidity,PresenceStatus,SessionID\n";
           (rows || []).forEach((r) => {
-            csv += `${r.id},${r.waktu},${r.suhu},${r.kelembapan},${r.session_id}\n`;
+            csv += `${r.id},${r.waktu},${r.suhu},${r.kelembapan},${r.presence_status},${r.session_id}\n`;
           });
           res.writeHead(200, {
             "Content-Type": "text/csv",
@@ -708,6 +753,55 @@ const server = http.createServer((req, res) => {
         },
       );
     });
+  }
+
+  // Edit presence_status for an entire session's data
+  if (
+    method === "POST" &&
+    pathname.startsWith("/api/sessions/") &&
+    pathname.endsWith("/presence")
+  ) {
+    const parts = pathname.split("/");
+    const sessionId = Number(parts[3]);
+    if (!Number.isFinite(sessionId)) {
+      return sendJson(res, 400, { error: "Invalid session id" });
+    }
+
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 1e6) req.destroy();
+    });
+    req.on("end", () => {
+      let parsed;
+      try {
+        parsed = body ? JSON.parse(body) : {};
+      } catch {
+        return sendJson(res, 400, { error: "Invalid JSON body" });
+      }
+
+      const status = parsed.status;
+      if (status !== "occupied" && status !== "empty") {
+        return sendJson(res, 400, {
+          error: "Invalid status, must be 'occupied' or 'empty'",
+        });
+      }
+
+      db.run(
+        "UPDATE sensor_data SET presence_status = ? WHERE session_id = ?",
+        [status, sessionId],
+        (err) => {
+          if (err) return sendJson(res, 500, { error: err.message });
+          // record an event for audit/history
+          db.run(
+            "INSERT INTO presence_events (status, note) VALUES (?, ?)",
+            [status, `applied to session ${sessionId}`],
+            () => sendJson(res, 200, { ok: true, status }),
+          );
+        },
+      );
+    });
+    return;
   }
 
   // Download CSV for presence analysis (time,temp,humi,presence_status)

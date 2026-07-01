@@ -142,7 +142,12 @@ function renderLog() {
       <td class="td-time">${d.time}</td>
       <td class="td-val v-temp">${d.temp.toFixed(1)} °C</td>
       <td class="td-val v-humi">${d.humi.toFixed(1)} %</td>
-      <td><span class="badge b-${s.badge}">${s.icon} ${s.badgeText}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge b-${s.badge}">${s.icon} ${s.badgeText}</span>
+          <span style="font-size:11px;color:var(--muted)">[${d.presenceStatus || "empty"}]</span>
+        </div>
+      </td>
     </tr>`;
     })
     .join("");
@@ -328,12 +333,13 @@ function updateCards() {
     });
 }
 
-function ingest(temp, humi, timeStr, ts) {
+function ingest(temp, humi, timeStr, ts, presenceStatus) {
   allData.push({
     temp,
     humi,
     time: timeStr || new Date().toLocaleTimeString("id-ID", { hour12: false }),
     ts: ts || Date.now(),
+    presenceStatus: presenceStatus || "empty",
   });
   updateCards();
   updateChart();
@@ -409,7 +415,7 @@ function connectWs() {
             hour12: false,
           })
         : new Date().toLocaleTimeString("id-ID", { hour12: false });
-      ingest(+t, +h, str, ts);
+      ingest(+t, +h, str, ts, d.presenceStatus || d.presencestatus || "empty");
     }
   };
 }
@@ -473,7 +479,13 @@ async function loadHistory(sessionId) {
             hour12: false,
           })
         : "—";
-      allData.push({ temp: +row.temp, humi: +row.humi, time: str, ts });
+      allData.push({
+        temp: +row.temp,
+        humi: +row.humi,
+        time: str,
+        ts,
+        presenceStatus: row.presenceStatus || "empty",
+      });
     });
     if (allData.length) {
       updateCards();
@@ -516,22 +528,21 @@ async function analyzeSession() {
     alert("Silakan pilih sesi terlebih dahulu.");
     return;
   }
-  
+
   const btn = document.getElementById("btnAnalyze");
   btn.disabled = true;
   btn.textContent = "⏳ Menganalisis...";
-  
+
   try {
     const res = await fetch(`/api/session/${sessionId}/analyze`);
     const data = await res.json();
-    
+
     if (!res.ok) {
       throw new Error(data.error || data.detail || "Gagal menganalisis sesi");
     }
-    
+
     document.getElementById("mlAnalysisSection").style.display = "block";
     renderMlCharts(data);
-    
   } catch (err) {
     alert("Error: " + err.message);
   } finally {
@@ -546,73 +557,102 @@ function renderMlCharts(data) {
   if (mlXgbChart) mlXgbChart.destroy();
 
   const dbscanData = data.dbscan || [];
-  const normalPoints = dbscanData.filter(d => !d.anomaly).map(d => ({ x: d.x, y: d.y }));
-  const anomalyPoints = dbscanData.filter(d => d.anomaly).map(d => ({ x: d.x, y: d.y }));
-  
+  const normalPoints = dbscanData
+    .filter((d) => !d.anomaly)
+    .map((d) => ({ x: d.x, y: d.y }));
+  const anomalyPoints = dbscanData
+    .filter((d) => d.anomaly)
+    .map((d) => ({ x: d.x, y: d.y }));
+
   mlDbscanChart = new Chart(document.getElementById("mlDbscanChart"), {
-    type: 'scatter',
+    type: "scatter",
     data: {
       datasets: [
-        { label: 'Normal', data: normalPoints, backgroundColor: '#0369a1' },
-        { label: 'Anomali', data: anomalyPoints, backgroundColor: '#dc2626', pointRadius: 6 }
-      ]
+        { label: "Normal", data: normalPoints, backgroundColor: "#0369a1" },
+        {
+          label: "Anomali",
+          data: anomalyPoints,
+          backgroundColor: "#dc2626",
+          pointRadius: 6,
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: 'Suhu (°C)' } },
-        y: { title: { display: true, text: 'Kelembapan (%)' } }
-      }
-    }
+        x: { title: { display: true, text: "Suhu (°C)" } },
+        y: { title: { display: true, text: "Kelembapan (%)" } },
+      },
+    },
   });
 
   const rfData = data.random_forest || {};
   const rfLabels = Object.keys(rfData);
   const rfValues = Object.values(rfData);
-  
+
   mlRfChart = new Chart(document.getElementById("mlRfChart"), {
-    type: 'doughnut',
+    type: "doughnut",
     data: {
       labels: rfLabels,
-      datasets: [{
-        data: rfValues,
-        backgroundColor: ['#16a34a', '#eab308', '#ef4444', '#3b82f6'],
-      }]
+      datasets: [
+        {
+          data: rfValues,
+          backgroundColor: ["#16a34a", "#eab308", "#ef4444", "#3b82f6"],
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw.toFixed(1)}%` } }
-      }
-    }
+        tooltip: {
+          callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw.toFixed(1)}%` },
+        },
+      },
+    },
   });
 
   const xgbData = data.xgboost || { waktu: [], aktual: [], prediksi: [] };
-  const labels = xgbData.waktu.map(t => {
-     const parts = t.split(" ");
-     return parts.length > 1 ? parts[1].substring(0, 5) : t.substring(0,5);
+  const labels = xgbData.waktu.map((t) => {
+    const parts = t.split(" ");
+    return parts.length > 1 ? parts[1].substring(0, 5) : t.substring(0, 5);
   });
 
   mlXgbChart = new Chart(document.getElementById("mlXgbChart"), {
-    type: 'line',
+    type: "line",
     data: {
       labels: labels,
       datasets: [
-        { label: 'Suhu Aktual', data: xgbData.aktual, borderColor: '#94a3b8', borderWidth: 2, fill: false, pointRadius: 0, tension: 0.1 },
-        { label: 'Trend XGBoost', data: xgbData.prediksi, borderColor: '#c2410c', borderWidth: 3, fill: false, pointRadius: 0, tension: 0.4 }
-      ]
+        {
+          label: "Suhu Aktual",
+          data: xgbData.aktual,
+          borderColor: "#94a3b8",
+          borderWidth: 2,
+          fill: false,
+          pointRadius: 0,
+          tension: 0.1,
+        },
+        {
+          label: "Trend XGBoost",
+          data: xgbData.prediksi,
+          borderColor: "#c2410c",
+          borderWidth: 3,
+          fill: false,
+          pointRadius: 0,
+          tension: 0.4,
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: "index", intersect: false },
       scales: {
-        y: { title: { display: true, text: 'Suhu (°C)' } },
-        x: { ticks: { maxTicksLimit: 10 } }
-      }
-    }
+        y: { title: { display: true, text: "Suhu (°C)" } },
+        x: { ticks: { maxTicksLimit: 10 } },
+      },
+    },
   });
 }
 
@@ -621,7 +661,19 @@ function bindControls() {
     .getElementById("btnStart")
     .addEventListener("click", startMonitoring);
   document.getElementById("btnStop").addEventListener("click", stopMonitoring);
-  document.getElementById("btnAnalyze").addEventListener("click", analyzeSession);
+  document
+    .getElementById("btnAnalyze")
+    .addEventListener("click", analyzeSession);
+  const btnOcc = document.getElementById("btnMarkOccupied");
+  const btnEmp = document.getElementById("btnMarkEmpty");
+  if (btnOcc)
+    btnOcc.addEventListener("click", () =>
+      applyPresenceToSession(selectedSessionId || currentSessionId, "occupied"),
+    );
+  if (btnEmp)
+    btnEmp.addEventListener("click", () =>
+      applyPresenceToSession(selectedSessionId || currentSessionId, "empty"),
+    );
   document
     .getElementById("fAll")
     .addEventListener("click", () => setFilter("all"));
@@ -653,3 +705,27 @@ function bindControls() {
 
 bindControls();
 bootstrap();
+
+async function applyPresenceToSession(sessionId, status) {
+  if (!sessionId) return;
+  if (
+    !confirm(`Terapkan status '${status}' ke seluruh data sesi #${sessionId}?`)
+  )
+    return;
+  try {
+    const r = await fetch(`/api/sessions/${sessionId}/presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Gagal menerapkan status");
+    alert(`Berhasil: semua data sesi #${sessionId} diberi status ${status}`);
+    // reload history for the selected session
+    resetData();
+    await loadHistory(sessionId);
+    refreshSessions();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
