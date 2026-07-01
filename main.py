@@ -130,4 +130,5 @@ def analyze_session(session_id: int = Query(..., description="ID of the session 
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=5000)
+    # Ubah dari 5000 menjadi 5001
+    uvicorn.run(app, host="127.0.0.1", port=5001)
