@@ -61,7 +61,7 @@ def analyze_session(session_id: int = Query(..., description="ID of the session 
         # ALGORITHM 1: DBSCAN (Clustering / Anomaly Detection)
         # ---------------------------------------------------------
         # eps and min_samples tuned heuristically for generic room temp/humidity
-        dbscan = DBSCAN(eps=0.8, min_samples=3)
+        dbscan = DBSCAN(eps=0.5, min_samples=5)
         clusters = dbscan.fit_predict(X_scaled)
         
         # -1 indicates anomaly, everything else is a normal cluster
