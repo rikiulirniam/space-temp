@@ -7,7 +7,7 @@ let sessions = [];
 let ws = null;
 
 function getStatus(t, h) {
-  if (t >= 35 || t < 24) {
+  if (t >= 35 || t < 20) {
     return {
       cls: "s-bad",
       icon: "[X]",
@@ -17,7 +17,7 @@ function getStatus(t, h) {
       badgeText: "Bahaya",
     };
   }
-  if (t >= 20 && t <= 30) {
+  if (t >= 24 && t <= 32) {
     return {
       cls: "s-ok",
       icon: "[OK]",
